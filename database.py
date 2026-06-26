@@ -180,3 +180,120 @@ class Database:
         """)
 
         self.conn.commit()
+
+    # ==========================
+    # Статистика
+    # ==========================
+
+    def get_statistics(self):
+        self.cursor.execute("""
+        SELECT * FROM statistics
+        WHERE id = 1
+        """)
+        return self.cursor.fetchone()
+
+    def supported_users(self):
+        self.cursor.execute("""
+        SELECT COUNT(*)
+        FROM users
+        WHERE supporter = 1
+        """)
+        return self.cursor.fetchone()[0]
+
+    def total_users(self):
+        self.cursor.execute("""
+        SELECT COUNT(*)
+        FROM users
+        """)
+        return self.cursor.fetchone()[0]
+
+    def total_downloads(self):
+        self.cursor.execute("""
+        SELECT SUM(downloads)
+        FROM users
+        """)
+
+        result = self.cursor.fetchone()[0]
+
+        if result is None:
+            return 0
+
+        return result
+
+    def reset_daily_statistics(self):
+        today = datetime.now().strftime("%Y-%m-%d")
+
+        self.cursor.execute("""
+        SELECT last_reset
+        FROM statistics
+        WHERE id = 1
+        """)
+
+        last = self.cursor.fetchone()["last_reset"]
+
+        if last != today:
+
+            self.cursor.execute("""
+            UPDATE statistics
+            SET downloads_today = 0,
+                new_users_today = 0,
+                last_reset = ?
+            WHERE id = 1
+            """, (today,))
+
+            self.conn.commit()
+
+    # ==========================
+    # Админ
+    # ==========================
+
+    def user_exists(self, user_id):
+        self.cursor.execute("""
+        SELECT user_id
+        FROM users
+        WHERE user_id = ?
+        """, (user_id,))
+
+        return self.cursor.fetchone() is not None
+
+    def remove_expired_subscriptions(self):
+        self.cursor.execute("""
+        SELECT user_id, supporter_until
+        FROM users
+        WHERE supporter = 1
+        """)
+
+        users = self.cursor.fetchall()
+
+        now = datetime.now()
+
+        for user in users:
+
+            if user["supporter_until"] == "lifetime":
+                continue
+
+            expire = datetime.strptime(
+                user["supporter_until"],
+                "%Y-%m-%d %H:%M:%S"
+            )
+
+            if now >= expire:
+
+                self.cursor.execute("""
+                UPDATE users
+                SET supporter = 0,
+                    supporter_until = NULL
+                WHERE user_id = ?
+                """, (user["user_id"],))
+
+        self.conn.commit()
+
+    # ==========================
+    # Закрытие базы
+    # ==========================
+
+    def close(self):
+        self.conn.close()
+
+
+db = Database()
