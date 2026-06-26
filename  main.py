@@ -75,10 +75,10 @@ async def cmd_start(message: Message):
     ])
     
     await message.answer(
-    texts["start"],
-    parse_mode="HTML",
-    reply_markup=keyboard
-)
+        texts["start"],
+        parse_mode="HTML",
+        reply_markup=keyboard
+    )
 
 
 @dp.message(Command("admin"))
