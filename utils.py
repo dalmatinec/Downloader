@@ -54,6 +54,57 @@ def load_texts() -> Dict:
         return {}
 
 
+def load_ads() -> Dict:
+    """Загрузка рекламных текстов"""
+    try:
+        with open('ads.json', 'r', encoding='utf-8') as f:
+            return json.load(f)
+    except FileNotFoundError:
+        # Создаем файл с настройками по умолчанию
+        default_ads = {
+            "enabled": False,
+            "start": {
+                "text": "📢 Поддержи проект - отключи рекламу!",
+                "enabled": False
+            },
+            "menu": {
+                "text": "📢 Рекламный баннер в меню",
+                "enabled": False
+            },
+            "after_download": {
+                "text": "📢 Спасибо за скачивание! Поддержи проект ❤️",
+                "enabled": False
+            }
+        }
+        with open('ads.json', 'w', encoding='utf-8') as f:
+            json.dump(default_ads, f, indent=4, ensure_ascii=False)
+        return default_ads
+    except:
+        return {"enabled": False}
+
+
+def should_show_ad(user_id: int, ad_type: str, db) -> Tuple[bool, str]:
+    """Проверка нужно ли показывать рекламу"""
+    # Проверяем премиум
+    user = db.get_user(user_id)
+    if user and user[4]:  # is_premium
+        return False, ""
+    
+    # Загружаем настройки рекламы
+    ads = load_ads()
+    
+    # Проверяем включена ли реклама вообще
+    if not ads.get('enabled', False):
+        return False, ""
+    
+    # Проверяем конкретный тип
+    ad_data = ads.get(ad_type, {})
+    if not ad_data.get('enabled', False):
+        return False, ""
+    
+    return True, ad_data.get('text', "")
+
+
 def ensure_temp_folder():
     """Создание папки temp"""
     if not os.path.exists(TEMP_FOLDER):
