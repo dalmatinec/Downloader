@@ -67,8 +67,18 @@ async def cmd_start(message: Message):
         if can_show:
             await message.answer(ad_text)
     
-    await message.answer(texts.get("start", "👋 Добро пожаловать! Отправьте ссылку на видео."))
-    await show_main_menu(message)
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="❤️ Поддержать проект", callback_data="support"), 
+         InlineKeyboardButton(text="💼 Разработка", callback_data="development")],
+        [InlineKeyboardButton(text="⚙️ Настройки", callback_data="settings"), 
+         InlineKeyboardButton(text="❓ Помощь", callback_data="help")]
+    ])
+    
+    await message.answer(
+        texts.get("start", "👋 Добро пожаловать! Отправьте ссылку на видео."),
+        parse_mode="HTML",
+        reply_markup=keyboard
+    )
 
 
 @dp.message(Command("admin"))
