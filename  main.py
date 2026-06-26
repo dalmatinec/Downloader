@@ -22,6 +22,13 @@ from tiktok import TikTokDownloader
 from payment import PaymentManager
 from admin import AdminHandler, AdminStates
 
+# Принудительная загрузка текстов
+texts = load_texts()
+if not texts:
+    logger.error("TEXTS.JSON НЕ ЗАГРУЗИЛСЯ!")
+else:
+    logger.info(f"TEXTS.JSON ЗАГРУЖЕН, ключей: {len(texts)}")
+
 # Настройка логирования
 logging.basicConfig(
     level=logging.INFO,
@@ -73,10 +80,22 @@ async def cmd_start(message: Message):
         [InlineKeyboardButton(text="⚙️ Настройки", callback_data="settings"), 
          InlineKeyboardButton(text="❓ Помощь", callback_data="help")]
     ])
+
     
+ try:
     await message.answer(
         texts["start"],
         parse_mode="HTML",
+        reply_markup=keyboard
+    )
+except KeyError:
+    await message.answer(
+        f"❌ Ошибка: в texts.json нет ключа 'start'",
+        reply_markup=keyboard
+    )
+except Exception as e:
+    await message.answer(
+        f"❌ Ошибка загрузки текста: {e}",
         reply_markup=keyboard
     )
 
