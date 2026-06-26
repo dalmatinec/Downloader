@@ -27,11 +27,11 @@ PRICE_LIFETIME = 35000
 # Telegram Stars (XTR)
 # Заполним после выбора окончательных цен в Stars
 
-STARS_1_MONTH = 250
-STARS_3_MONTH = 650
-STARS_6_MONTH = 1000
-STARS_12_MONTH = 1750
-STARS_LIFETIME = 3500
+STARS_1_MONTH = 215
+STARS_3_MONTH = 560
+STARS_6_MONTH = 855
+STARS_12_MONTH = 1500
+STARS_LIFETIME = 3000
 
 # ==========================
 # Premium
