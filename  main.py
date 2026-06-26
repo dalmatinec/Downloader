@@ -1,7 +1,6 @@
 # main.py - ЧАСТЬ 1
 # ============================================
-# ИМПОРТЫ, ИНИЦИАЛИЗАЦИЯ, КОМАНДЫ, ГЛАВНОЕ МЕНЮ, 
-# НАВИГАЦИЯ, ПОДДЕРЖКА ПРОЕКТА, ПЛАТЕЖИ
+# ИМПОРТЫ, ИНИЦИАЛИЗАЦИЯ, КОМАНДЫ, ГЛАВНОЕ МЕНЮ, ПОДДЕРЖКА, ПЛАТЕЖИ
 # ============================================
 
 import asyncio
@@ -68,6 +67,7 @@ async def cmd_start(message: Message):
         if can_show:
             await message.answer(ad_text)
     
+    await message.answer(texts.get("start", "👋 Добро пожаловать! Отправьте ссылку на видео."))
     await show_main_menu(message)
 
 
@@ -98,11 +98,10 @@ async def show_main_menu(message: Message):
             await message.answer(ad_text)
     
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="📥 Скачать", callback_data="download")],
-        [InlineKeyboardButton(text="❤️ Поддержать проект", callback_data="support")],
-        [InlineKeyboardButton(text="💼 Разработка", callback_data="development")],
-        [InlineKeyboardButton(text="⚙️ Настройки", callback_data="settings")],
-        [InlineKeyboardButton(text="❓ Помощь", callback_data="help")]
+        [InlineKeyboardButton(text="❤️ Поддержать проект", callback_data="support"), 
+         InlineKeyboardButton(text="💼 Разработка", callback_data="development")],
+        [InlineKeyboardButton(text="⚙️ Настройки", callback_data="settings"), 
+         InlineKeyboardButton(text="❓ Помощь", callback_data="help")]
     ])
     await message.answer(texts.get("main_menu", "🏠 Главное меню"), reply_markup=keyboard)
 
@@ -110,18 +109,6 @@ async def show_main_menu(message: Message):
 # ============================================
 # CALLBACK НАВИГАЦИЯ
 # ============================================
-
-@dp.callback_query(F.data == "download")
-async def cb_download(callback: CallbackQuery, state: FSMContext):
-    await callback.answer()
-    await state.set_state(DownloadStates.waiting_for_url)
-    await callback.message.edit_text(
-        texts.get("download_prompt", "📥 Отправьте ссылку:"),
-        reply_markup=InlineKeyboardMarkup(inline_keyboard=[
-            [InlineKeyboardButton(text="⬅️ Назад", callback_data="back_to_menu")]
-        ])
-    )
-
 
 @dp.callback_query(F.data == "back_to_menu")
 async def cb_back_to_menu(callback: CallbackQuery, state: FSMContext):
@@ -197,7 +184,7 @@ async def show_support_menu(message: Message):
     
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="⭐ Оплатить Stars", callback_data="pay_stars")],
-        [InlineKeyboardButton(text="👨‍💻 Оплатить напрямую", callback_data="pay_manual")],
+        [InlineKeyboardButton(text="👨‍💻 Ручная оплата", callback_data="pay_manual")],
         [InlineKeyboardButton(text="⬅️ Назад", callback_data="back_to_menu")]
     ])
     
@@ -231,15 +218,13 @@ async def cb_pay_stars(callback: CallbackQuery):
 @dp.callback_query(F.data == "pay_manual")
 async def cb_pay_manual(callback: CallbackQuery):
     await callback.answer()
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="👨‍💻 Связаться с разработчиком", url="https://t.me/kz777LLL")],
+        [InlineKeyboardButton(text="⬅️ Назад", callback_data="support")]
+    ])
     await callback.message.edit_text(
-        texts.get("payment_manual", "👨‍💻 Ручная оплата").format(
-            developer=config.DEVELOPER_USERNAME,
-            price=config.PRICE_1_MONTH
-        ),
-        parse_mode="HTML",
-        reply_markup=InlineKeyboardMarkup(inline_keyboard=[
-            [InlineKeyboardButton(text="⬅️ Назад", callback_data="support")]
-        ])
+        "👨‍💻 Ручная оплата\n\n💰 Стоимость: от 2500 ₸\n📅 Срок: 1 месяц, 3 месяца, 6 месяцев, 12 месяцев, Навсегда\n\nНажмите на кнопку ниже, чтобы связаться с разработчиком.",
+        reply_markup=keyboard
     )
 
 
@@ -256,11 +241,13 @@ async def cb_subscription(callback: CallbackQuery):
     else:
         price = get_subscription_price(days)
         sub_text = get_subscription_type_text(days)
+        keyboard = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="👨‍💻 Связаться с разработчиком", url="https://t.me/kz777LLL")],
+            [InlineKeyboardButton(text="⬅️ Назад", callback_data="support")]
+        ])
         await callback.message.edit_text(
-            f"👨‍💻 Ручная оплата\n\n💰 {price} ₸\n📅 {sub_text}\n\nСвязь: {config.DEVELOPER_USERNAME}",
-            reply_markup=InlineKeyboardMarkup(inline_keyboard=[
-                [InlineKeyboardButton(text="⬅️ Назад", callback_data="support")]
-            ])
+            f"👨‍💻 Ручная оплата\n\n💰 {price} ₸\n📅 {sub_text}\n\nНажмите на кнопку ниже, чтобы оплатить.",
+            reply_markup=keyboard
         )
 
 
@@ -276,9 +263,14 @@ async def pre_checkout_handler(pre_checkout_query: types.PreCheckoutQuery):
 @dp.message(F.successful_payment)
 async def successful_payment_handler(message: Message):
     await payment.process_successful_payment(message)
+
+
+# ============================================
+# КОНЕЦ ЧАСТИ 1
+# ============================================
 # main.py - ЧАСТЬ 2
 # ============================================
-# ОБРАБОТКА ССЫЛОК, СКАЧИВАНИЕ, АДМИН CALLBACK, ЗАПУСК
+# ОБРАБОТКА ССЫЛОК, КАЧЕСТВА, СКАЧИВАНИЕ, АДМИН, ЗАПУСК
 # ============================================
 
 @dp.message(StateFilter(DownloadStates.waiting_for_url))
@@ -443,19 +435,10 @@ async def cb_download_quality(callback: CallbackQuery, state: FSMContext):
         
         await callback.message.delete()
         
-        await callback.message.answer(
-            texts.get("download_success", "✅ Видео готово!").format(
-                title=title,
-                quality=quality_text,
-                size=format_size(file_size)
-            ),
-            parse_mode="HTML"
-        )
-        
         video_file = FSInputFile(filepath)
         await callback.message.answer_video(
             video=video_file,
-            caption=f"📹 {title}\n🎬 {quality_text}\n📦 {format_size(file_size)}"
+            caption=f"✅ Видео готово!\n\n📹 {title}\n🎬 {quality_text}\n📦 {format_size(file_size)}"
         )
         
         user_id = callback.from_user.id
@@ -508,20 +491,14 @@ async def cb_download_mp3(callback: CallbackQuery, state: FSMContext):
         
         await callback.message.delete()
         
-        await callback.message.answer(
-            texts.get("mp3_success", "🎵 Аудио готово!").format(
-                title=title,
-                size=format_size(file_size)
-            ),
-            parse_mode="HTML"
-        )
-        
         audio_file = FSInputFile(filepath)
         await callback.message.answer_audio(
             audio=audio_file,
             title=title,
             performer=info.get('uploader', 'Unknown')
         )
+        
+        await callback.message.answer(f"✅ Аудио готово!\n\n🎵 {title}\n📦 {format_size(file_size)}")
         
         user_id = callback.from_user.id
         user = db.get_user(user_id)
@@ -662,3 +639,8 @@ if __name__ == "__main__":
         logger.info("Бот остановлен")
     finally:
         db.close()
+
+
+# ============================================
+# КОНЕЦ ЧАСТИ 2
+# ============================================
