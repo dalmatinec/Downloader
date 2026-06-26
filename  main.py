@@ -1,4 +1,3 @@
-# main.py
 import asyncio
 import logging
 from datetime import datetime
@@ -15,7 +14,7 @@ from utils import *
 from youtube import YouTubeDownloader
 from tiktok import TikTokDownloader
 from payment import PaymentManager
-from admin import AdminHandler
+from admin import AdminHandler, AdminStates
 
 # Настройка логирования
 logging.basicConfig(
@@ -45,14 +44,10 @@ texts = load_texts()
 class DownloadStates(StatesGroup):
     waiting_for_url = State()
     choosing_quality = State()
-    choosing_action = State()
 
-class AdminStates(StatesGroup):
-    waiting_for_broadcast = State()
-    waiting_for_user_id = State()
-    waiting_for_subscription_type = State()
-
-# ==================== ОБРАБОТЧИКИ КОМАНД ====================
+# ============================================
+# КОМАНДЫ
+# ============================================
 
 @dp.message(Command("start"))
 async def cmd_start(message: Message):
@@ -62,14 +57,60 @@ async def cmd_start(message: Message):
     first_name = message.from_user.first_name
     last_name = message.from_user.last_name
     
-    # Добавляем пользователя в БД
+    # Добавляем пользователя
     db.add_user(user_id, username, first_name, last_name)
     db.update_user_activity(user_id)
     
     # Проверяем истекшие подписки
     db.check_premium_expired()
     
-    # Клавиатура главного меню
+    # Реклама при старте (только обычным)
+    user = db.get_user(user_id)
+    is_premium = user[4] if user else False
+    
+    if not is_premium:
+        can_show, ad_text = should_show_ad(user_id, "start", db)
+        if can_show:
+            await message.answer(ad_text)
+    
+    # Главное меню
+    await show_main_menu(message)
+
+
+@dp.message(Command("admin"))
+async def cmd_admin(message: Message):
+    """Обработчик команды /admin"""
+    user_id = message.from_user.id
+    
+    if not is_admin(user_id):
+        await message.answer(texts.get("admin_not_authorized", "⛔ Нет доступа"))
+        return
+    
+    await admin.show_admin_panel(message)
+
+
+@dp.message(Command("help"))
+async def cmd_help(message: Message):
+    """Обработчик команды /help"""
+    help_text = texts.get("help", "❓ Помощь").format(developer=config.DEVELOPER_USERNAME)
+    await message.answer(help_text, parse_mode="HTML")
+# ============================================
+# ГЛАВНОЕ МЕНЮ
+# ============================================
+
+async def show_main_menu(message: Message):
+    """Показать главное меню"""
+    user_id = message.from_user.id
+    
+    # Реклама в меню
+    user = db.get_user(user_id)
+    is_premium = user[4] if user else False
+    
+    if not is_premium:
+        can_show, ad_text = should_show_ad(user_id, "menu", db)
+        if can_show:
+            await message.answer(ad_text)
+    
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="📥 Скачать", callback_data="download")],
         [InlineKeyboardButton(text="❤️ Поддержать проект", callback_data="support")],
@@ -78,34 +119,14 @@ async def cmd_start(message: Message):
         [InlineKeyboardButton(text="❓ Помощь", callback_data="help")]
     ])
     
-    # Проверка подписки
-    user = db.get_user(user_id)
-    is_premium = user[4] if user else False
-    
-    welcome_text = texts.get("start", "👋 Добро пожаловать!")
-    if is_premium:
-        welcome_text += "\n\n🌟 У вас активная подписка!"
-    
-    await message.answer(welcome_text, reply_markup=keyboard)
+    await message.answer(
+        texts.get("main_menu", "🏠 Главное меню"),
+        reply_markup=keyboard
+    )
 
-@dp.message(Command("download"))
-async def cmd_download(message: Message, state: FSMContext):
-    """Обработчик команды /download"""
-    await state.set_state(DownloadStates.waiting_for_url)
-    await message.answer(texts.get("download_prompt", "📥 Отправьте ссылку на видео:"))
-
-@dp.message(Command("support"))
-async def cmd_support(message: Message):
-    """Обработчик команды /support"""
-    await show_support_menu(message)
-
-@dp.message(Command("help"))
-async def cmd_help(message: Message):
-    """Обработчик команды /help"""
-    help_text = texts.get("help", "❓ Помощь").format(developer=config.DEVELOPER_USERNAME)
-    await message.answer(help_text, parse_mode="HTML")
-
-# ==================== ОБРАБОТЧИКИ CALLBACK ====================
+# ============================================
+# CALLBACK ОБРАБОТЧИКИ
+# ============================================
 
 @dp.callback_query(F.data == "download")
 async def callback_download(callback: CallbackQuery, state: FSMContext):
@@ -119,11 +140,31 @@ async def callback_download(callback: CallbackQuery, state: FSMContext):
         ])
     )
 
+
+@dp.callback_query(F.data == "back_to_menu")
+async def callback_back_to_menu(callback: CallbackQuery, state: FSMContext):
+    """Назад в главное меню"""
+    await callback.answer()
+    await state.clear()
+    await callback.message.delete()
+    await show_main_menu(callback.message)
+
+
+@dp.callback_query(F.data == "back_to_video")
+async def callback_back_to_video(callback: CallbackQuery, state: FSMContext):
+    """Назад к видео"""
+    await callback.answer()
+    await state.clear()
+    await callback.message.delete()
+    await callback.message.answer(texts.get("download_prompt", "📥 Отправьте ссылку на видео:"))
+
+
 @dp.callback_query(F.data == "support")
 async def callback_support(callback: CallbackQuery):
     """Кнопка Поддержать проект"""
     await callback.answer()
     await show_support_menu(callback.message)
+
 
 @dp.callback_query(F.data == "development")
 async def callback_development(callback: CallbackQuery):
@@ -137,6 +178,7 @@ async def callback_development(callback: CallbackQuery):
             [InlineKeyboardButton(text="⬅️ Назад", callback_data="back_to_menu")]
         ])
     )
+
 
 @dp.callback_query(F.data == "settings")
 async def callback_settings(callback: CallbackQuery):
@@ -154,6 +196,7 @@ async def callback_settings(callback: CallbackQuery):
         ])
     )
 
+
 @dp.callback_query(F.data == "help")
 async def callback_help(callback: CallbackQuery):
     """Кнопка Помощь"""
@@ -166,22 +209,9 @@ async def callback_help(callback: CallbackQuery):
             [InlineKeyboardButton(text="⬅️ Назад", callback_data="back_to_menu")]
         ])
     )
-
-@dp.callback_query(F.data == "back_to_menu")
-async def callback_back_to_menu(callback: CallbackQuery):
-    """Кнопка Назад в главное меню"""
-    await callback.answer()
-    await show_main_menu(callback.message)
-
-@dp.callback_query(F.data == "back_to_video")
-async def callback_back_to_video(callback: CallbackQuery, state: FSMContext):
-    """Кнопка Назад к видео"""
-    await callback.answer()
-    await state.clear()
-    await callback.message.delete()
-    await callback.message.answer(texts.get("download_prompt", "📥 Отправьте ссылку на видео:"))
-
-# ==================== ПОДДЕРЖКА ПРОЕКТА ====================
+# ============================================
+# ПОДДЕРЖКА ПРОЕКТА
+# ============================================
 
 async def show_support_menu(message: Message):
     """Показать меню поддержки"""
@@ -228,11 +258,13 @@ async def show_support_menu(message: Message):
     
     await message.answer(price_text, parse_mode="HTML", reply_markup=keyboard)
 
+
 @dp.callback_query(F.data == "pay_stars")
 async def callback_pay_stars(callback: CallbackQuery):
-    """Оплата через Telegram Stars"""
+    """Оплата через Stars"""
     await callback.answer()
     await show_subscription_options(callback.message, "stars")
+
 
 @dp.callback_query(F.data == "pay_manual")
 async def callback_pay_manual(callback: CallbackQuery):
@@ -252,6 +284,7 @@ async def callback_pay_manual(callback: CallbackQuery):
         ])
     )
 
+
 async def show_subscription_options(message: Message, payment_type: str):
     """Показать варианты подписки"""
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
@@ -268,6 +301,7 @@ async def show_subscription_options(message: Message, payment_type: str):
         reply_markup=keyboard
     )
 
+
 @dp.callback_query(F.data.startswith("sub_"))
 async def callback_subscription(callback: CallbackQuery):
     """Обработка выбора подписки"""
@@ -279,10 +313,8 @@ async def callback_subscription(callback: CallbackQuery):
     user_id = callback.from_user.id
     
     if payment_type == "stars":
-        # Оплата через Stars
         await payment.process_stars_payment(callback.message, user_id, days)
     else:
-        # Ручная оплата
         price = get_subscription_price(days)
         sub_text = get_subscription_type_text(days)
         
@@ -299,8 +331,24 @@ async def callback_subscription(callback: CallbackQuery):
                 [InlineKeyboardButton(text="⬅️ Назад", callback_data="support")]
             ])
         )
+# ============================================
+# ПЛАТЕЖИ (STARS)
+# ============================================
 
-# ==================== ОБРАБОТЧИКИ СООБЩЕНИЙ ====================
+@dp.pre_checkout_query()
+async def pre_checkout_handler(pre_checkout_query: types.PreCheckoutQuery):
+    """Обработка предоплаты"""
+    await payment.process_pre_checkout(pre_checkout_query)
+
+
+@dp.message(F.successful_payment)
+async def successful_payment_handler(message: Message):
+    """Обработка успешной оплаты"""
+    await payment.process_successful_payment(message)
+
+# ============================================
+# ОБРАБОТКА ССЫЛОК
+# ============================================
 
 @dp.message(StateFilter(DownloadStates.waiting_for_url))
 async def handle_url(message: Message, state: FSMContext):
@@ -315,7 +363,7 @@ async def handle_url(message: Message, state: FSMContext):
     
     url = message.text.strip()
     
-    # Проверяем, что это ссылка
+    # Проверяем что это ссылка
     if not url.startswith(('http://', 'https://')):
         await message.answer(texts.get("invalid_url", "❌ Отправьте корректную ссылку"))
         return
@@ -327,11 +375,11 @@ async def handle_url(message: Message, state: FSMContext):
         await message.answer(texts.get("unsupported_platform", "❌ Платформа не поддерживается"))
         return
     
-    # Отправляем сообщение о начале обработки
+    # Сообщение о начале обработки
     wait_msg = await message.answer(texts.get("processing", "⏳ Обрабатываю ссылку..."))
     
     try:
-        # Получаем информацию о видео
+        # Получаем информацию
         if platform == 'youtube':
             info = youtube.get_video_info(url)
         elif platform == 'tiktok':
@@ -346,22 +394,17 @@ async def handle_url(message: Message, state: FSMContext):
             await message.answer(texts.get("download_error", "❌ Ошибка получения информации"))
             return
         
-        # Сохраняем информацию в состояние
+        # Сохраняем в состояние
         await state.update_data({
             'url': url,
             'platform': platform,
             'info': info
         })
         
-        # Формируем сообщение с информацией
+        # Формируем сообщение
         duration_str = format_duration(info.get('duration', 0))
         views = info.get('view_count', 0)
-        if views > 1000000:
-            views_str = f"{views/1000000:.1f}M"
-        elif views > 1000:
-            views_str = f"{views/1000:.1f}K"
-        else:
-            views_str = str(views)
+        views_str = f"{views/1000000:.1f}M" if views > 1000000 else f"{views/1000:.1f}K" if views > 1000 else str(views)
         
         info_text = texts.get("video_info", "📹 {title}").format(
             title=info.get('title', 'Без названия')[:100],
@@ -370,7 +413,6 @@ async def handle_url(message: Message, state: FSMContext):
             views=views_str
         )
         
-        # Клавиатура действий
         keyboard = InlineKeyboardMarkup(inline_keyboard=[
             [InlineKeyboardButton(text="🎬 Доступные качества", callback_data="show_qualities")],
             [InlineKeyboardButton(text="🎵 MP3", callback_data="download_mp3")],
@@ -386,6 +428,7 @@ async def handle_url(message: Message, state: FSMContext):
         logger.error(f"Ошибка обработки ссылки: {e}")
         await wait_msg.delete()
         await message.answer(texts.get("download_error", "❌ Произошла ошибка"))
+
 
 @dp.callback_query(F.data == "show_qualities")
 async def callback_show_qualities(callback: CallbackQuery, state: FSMContext):
@@ -404,25 +447,23 @@ async def callback_show_qualities(callback: CallbackQuery, state: FSMContext):
         await callback.message.answer(texts.get("no_qualities", "❌ Нет доступных качеств"))
         return
     
-    # Формируем кнопки с качествами
     keyboard_buttons = []
     for f in formats:
         quality = f.get('quality', 'Unknown')
         size = format_size(f.get('filesize', 0))
-        button_text = f"{quality} ({size})"
         keyboard_buttons.append([InlineKeyboardButton(
-            text=button_text,
+            text=f"{quality} ({size})",
             callback_data=f"quality_{f.get('format_id', 'best')}"
         )])
     
     keyboard_buttons.append([InlineKeyboardButton(text="⬅️ Назад", callback_data="back_to_video")])
-    
     keyboard = InlineKeyboardMarkup(inline_keyboard=keyboard_buttons)
     
     await callback.message.edit_text(
         texts.get("select_quality", "🎬 Выберите качество:"),
         reply_markup=keyboard
     )
+
 
 @dp.callback_query(F.data.startswith("quality_"))
 async def callback_download_quality(callback: CallbackQuery, state: FSMContext):
@@ -470,7 +511,6 @@ async def callback_download_quality(callback: CallbackQuery, state: FSMContext):
             await callback.message.answer(texts.get("download_error", "❌ Ошибка скачивания"))
             return
         
-        # Отправляем видео
         file_size = os.path.getsize(filepath)
         title = info.get('title', 'video')[:50]
         
@@ -492,8 +532,18 @@ async def callback_download_quality(callback: CallbackQuery, state: FSMContext):
             caption=f"📹 {title}\n🎬 {quality_text}\n📦 {format_size(file_size)}"
         )
         
+        # Реклама после скачивания (только обычным)
+        user_id = callback.from_user.id
+        user = db.get_user(user_id)
+        is_premium = user[4] if user else False
+        
+        if not is_premium:
+            can_show, ad_text = should_show_ad(user_id, "after_download", db)
+            if can_show:
+                await callback.message.answer(ad_text)
+        
         # Логируем скачивание
-        db.add_download(callback.from_user.id, platform, 'video', quality_text, file_size)
+        db.add_download(user_id, platform, 'video', quality_text, file_size)
         
         # Удаляем файл
         if config.DELETE_AFTER_SEND:
@@ -502,6 +552,7 @@ async def callback_download_quality(callback: CallbackQuery, state: FSMContext):
     except Exception as e:
         logger.error(f"Ошибка скачивания: {e}")
         await callback.message.answer(texts.get("download_error", "❌ Ошибка скачивания"))
+
 
 @dp.callback_query(F.data == "download_mp3")
 async def callback_download_mp3(callback: CallbackQuery, state: FSMContext):
@@ -520,7 +571,6 @@ async def callback_download_mp3(callback: CallbackQuery, state: FSMContext):
     await callback.message.edit_text("🎵 Скачиваю аудио...")
     
     try:
-        # Скачиваем аудио
         if platform == 'youtube':
             filepath = youtube.download_audio(url)
         elif platform == 'tiktok':
@@ -546,20 +596,156 @@ async def callback_download_mp3(callback: CallbackQuery, state: FSMContext):
             parse_mode="HTML"
         )
         
-        # Отправляем аудио
         audio_file = FSInputFile(filepath)
         await callback.message.answer_audio(
             audio=audio_file,
             title=title,
             performer=info.get('uploader', 'Unknown')
         )
+        # Реклама после скачивания (только обычным)
+        user_id = callback.from_user.id
+        user = db.get_user(user_id)
+        is_premium = user[4] if user else False
         
-        # Логируем
-        db.add_download(callback.from_user.id, platform, 'audio', 'MP3', file_size)
+        if not is_premium:
+            can_show, ad_text = should_show_ad(user_id, "after_download", db)
+            if can_show:
+                await callback.message.answer(ad_text)
+        
+        db.add_download(user_id, platform, 'audio', 'MP3', file_size)
         
         if config.DELETE_AFTER_SEND:
             delete_file(filepath)
         
     except Exception as e:
         logger.error(f"Ошибка скачивания MP3: {e}")
-        await callback.me
+        await callback.message.answer(texts.get("download_error", "❌ Ошибка скачивания"))
+
+
+@dp.callback_query(F.data == "show_thumbnail")
+async def callback_show_thumbnail(callback: CallbackQuery, state: FSMContext):
+    """Показать превью"""
+    await callback.answer()
+    
+    data = await state.get_data()
+    url = data.get('url')
+    platform = data.get('platform')
+    info = data.get('info')
+    
+    if not url:
+        await callback.message.answer(texts.get("download_error", "❌ Ошибка"))
+        return
+    
+    await callback.message.edit_text("🖼 Загружаю превью...")
+    
+    try:
+        if platform == 'youtube':
+            filepath = youtube.download_thumbnail(url)
+        elif platform == 'tiktok':
+            filepath = tiktok.download_thumbnail(url)
+        else:
+            await callback.message.answer(texts.get("download_error", "❌ Ошибка"))
+            return
+        
+        if not filepath:
+            await callback.message.answer("❌ Не удалось загрузить превью")
+            return
+        
+        await callback.message.delete()
+        
+        photo_file = FSInputFile(filepath)
+        title = info.get('title', 'Видео')[:100]
+        
+        await callback.message.answer_photo(
+            photo=photo_file,
+            caption=texts.get("thumbnail_success", "🖼 Превью").format(title=title)
+        )
+        
+        if config.DELETE_AFTER_SEND:
+            delete_file(filepath)
+        
+    except Exception as e:
+        logger.error(f"Ошибка загрузки превью: {e}")
+        await callback.message.answer("❌ Ошибка загрузки превью")
+
+
+@dp.callback_query(F.data == "show_info")
+async def callback_show_info(callback: CallbackQuery, state: FSMContext):
+    """Показать информацию"""
+    await callback.answer()
+    
+    data = await state.get_data()
+    info = data.get('info')
+    
+    if not info:
+        await callback.message.answer("❌ Нет информации")
+        return
+    
+    duration_str = format_duration(info.get('duration', 0))
+    views = info.get('view_count', 0)
+    views_str = f"{views/1000000:.1f}M" if views > 1000000 else f"{views/1000:.1f}K" if views > 1000 else str(views)
+    
+    info_text = texts.get("info_text", "ℹ️ Информация").format(
+        title=info.get('title', 'Без названия'),
+        uploader=info.get('uploader', 'Неизвестно'),
+        duration=duration_str,
+        views=views_str,
+        date=datetime.now().strftime("%d.%m.%Y"),
+        description=info.get('description', 'Нет описания')[:200]
+    )
+    
+    await callback.message.edit_text(
+        info_text,
+        parse_mode="HTML",
+        reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="⬅️ Назад", callback_data="back_to_video")]
+        ])
+    )
+
+# ============================================
+# АДМИН CALLBACK
+# ============================================
+
+@dp.callback_query(F.data.startswith("admin_"))
+async def handle_admin_callbacks(callback: CallbackQuery, state: FSMContext):
+    """Обработка админских callback"""
+    await admin.handle_admin_callback(callback, state)
+
+
+@dp.message(StateFilter(AdminStates.waiting_for_user_id))
+async def process_admin_user_id(message: Message, state: FSMContext):
+    """Обработка ввода ID для выдачи подписки"""
+    await admin.process_user_id(message, state)
+
+
+@dp.message(StateFilter(AdminStates.waiting_for_broadcast))
+async def process_admin_broadcast(message: Message, state: FSMContext):
+    """Обработка рассылки"""
+    await admin.process_broadcast(message, state)
+
+
+@dp.callback_query(F.data == "admin_panel")
+async def callback_admin_panel(callback: CallbackQuery, state: FSMContext):
+    """Назад в админ-панель"""
+    await callback.answer()
+    await state.clear()
+    await admin.show_admin_panel(callback.message)
+
+# ============================================
+# ЗАПУСК БОТА
+# ============================================
+
+async def main():
+    """Главная функция"""
+    clean_temp_folder()
+    logger.info("Бот запущен!")
+    await dp.start_polling(bot)
+
+
+if __name__ == "__main__":
+    try:
+        asyncio.run(main())
+    except KeyboardInterrupt:
+        logger.info("Бот остановлен")
+    finally:
+        db.close()
