@@ -1,6 +1,5 @@
-# main.py - ЧАСТЬ 1
 # ============================================
-# ИМПОРТЫ, ИНИЦИАЛИЗАЦИЯ, КОМАНДЫ, ГЛАВНОЕ МЕНЮ, ПОДДЕРЖКА, ПЛАТЕЖИ
+# ЧАСТЬ 1: ИМПОРТЫ, ИНИЦИАЛИЗАЦИЯ, КОМАНДЫ
 # ============================================
 
 import asyncio
@@ -22,14 +21,6 @@ from tiktok import TikTokDownloader
 from payment import PaymentManager
 from admin import AdminHandler, AdminStates
 
-# Принудительная загрузка текстов
-texts = load_texts()
-if not texts:
-    logger.error("TEXTS.JSON НЕ ЗАГРУЗИЛСЯ!")
-else:
-    logger.info(f"TEXTS.JSON ЗАГРУЖЕН, ключей: {len(texts)}")
-
-# Настройка логирования
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -40,7 +31,6 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# Инициализация
 bot = Bot(token=config.BOT_TOKEN)
 storage = MemoryStorage()
 dp = Dispatcher(storage=storage)
@@ -50,10 +40,6 @@ tiktok = TikTokDownloader()
 payment = PaymentManager(bot, db)
 admin = AdminHandler(bot, db)
 
-# Загрузка текстов
-texts = load_texts()
-
-# Состояния
 class DownloadStates(StatesGroup):
     waiting_for_url = State()
 
@@ -80,22 +66,10 @@ async def cmd_start(message: Message):
         [InlineKeyboardButton(text="⚙️ Настройки", callback_data="settings"), 
          InlineKeyboardButton(text="❓ Помощь", callback_data="help")]
     ])
-
     
- try:
     await message.answer(
-        texts["start"],
+        "👋 Добро пожаловать в VideoDownloaderBot!\n\nЯ помогу вам скачать видео с YouTube и TikTok.\n\n📥 Просто отправьте мне ссылку на видео, и я скачаю его для вас.\n\nДоступные платформы:\n✅ YouTube\n✅ YouTube Shorts\n✅ TikTok",
         parse_mode="HTML",
-        reply_markup=keyboard
-    )
-except KeyError:
-    await message.answer(
-        f"❌ Ошибка: в texts.json нет ключа 'start'",
-        reply_markup=keyboard
-    )
-except Exception as e:
-    await message.answer(
-        f"❌ Ошибка загрузки текста: {e}",
         reply_markup=keyboard
     )
 
@@ -103,14 +77,17 @@ except Exception as e:
 @dp.message(Command("admin"))
 async def cmd_admin(message: Message):
     if not is_admin(message.from_user.id):
-        await message.answer(texts.get("admin_not_authorized", "⛔ Нет доступа"))
+        await message.answer("⛔ Нет доступа")
         return
     await admin.show_admin_panel(message)
 
 
 @dp.message(Command("help"))
 async def cmd_help(message: Message):
-    await message.answer(texts.get("help", "❓ Помощь").format(developer=config.DEVELOPER_USERNAME), parse_mode="HTML")
+    await message.answer(
+        "❓ Помощь\n\nКак использовать бота:\n\n1️⃣ Отправьте ссылку на видео с YouTube или TikTok\n2️⃣ Бот автоматически определит платформу\n3️⃣ Выберите качество для скачивания\n4️⃣ Получите видео или аудио\n\nДоступные команды:\n/start - Главное меню\n/support - Поддержать проект\n/help - Помощь\n\nПоддерживаемые платформы:\n✅ YouTube\n✅ YouTube Shorts\n✅ TikTok\n\nВопросы и предложения: @kz777LLL",
+        parse_mode="HTML"
+    )
 
 
 # ============================================
@@ -132,11 +109,14 @@ async def show_main_menu(message: Message):
         [InlineKeyboardButton(text="⚙️ Настройки", callback_data="settings"), 
          InlineKeyboardButton(text="❓ Помощь", callback_data="help")]
     ])
-    await message.answer(texts.get("main_menu", "🏠 Главное меню"), reply_markup=keyboard)
+    await message.answer("🏠 Главное меню\n\nВыберите действие:", reply_markup=keyboard)
 
 
 # ============================================
-# CALLBACK НАВИГАЦИЯ
+# КОНЕЦ ЧАСТИ 1
+# ============================================
+# ============================================
+# ЧАСТЬ 2: CALLBACK, ПОДДЕРЖКА, ПЛАТЕЖИ
 # ============================================
 
 @dp.callback_query(F.data == "back_to_menu")
@@ -157,7 +137,7 @@ async def cb_support(callback: CallbackQuery):
 async def cb_development(callback: CallbackQuery):
     await callback.answer()
     await callback.message.edit_text(
-        texts.get("development", "💼 Разработка").format(developer=config.DEVELOPER_USERNAME),
+        "💼 Разработка\n\nПредлагаю услуги по разработке:\n\n🤖 Telegram-ботов\n🌐 Сайтов\n⚙️ Автоматизации\n🛒 Интернет-магазинов\n📊 CRM\n🔗 API\n☁️ VPS\n🧩 Индивидуальных решений\n\n📩 Связь: @kz777LLL",
         parse_mode="HTML",
         reply_markup=InlineKeyboardMarkup(inline_keyboard=[
             [InlineKeyboardButton(text="⬅️ Назад", callback_data="back_to_menu")]
@@ -170,7 +150,7 @@ async def cb_settings(callback: CallbackQuery):
     await callback.answer()
     downloads = db.get_user_downloads_count(callback.from_user.id)
     await callback.message.edit_text(
-        texts.get("settings", "⚙️ Настройки").format(downloads=downloads),
+        f"⚙️ Настройки\n\nПока доступно:\n\n📊 Статистика ваших скачиваний: {downloads}\n\nДополнительные настройки будут добавлены позже.",
         parse_mode="HTML",
         reply_markup=InlineKeyboardMarkup(inline_keyboard=[
             [InlineKeyboardButton(text="⬅️ Назад", callback_data="back_to_menu")]
@@ -182,7 +162,7 @@ async def cb_settings(callback: CallbackQuery):
 async def cb_help(callback: CallbackQuery):
     await callback.answer()
     await callback.message.edit_text(
-        texts.get("help", "❓ Помощь").format(developer=config.DEVELOPER_USERNAME),
+        "❓ Помощь\n\nКак использовать бота:\n\n1️⃣ Отправьте ссылку на видео с YouTube или TikTok\n2️⃣ Бот автоматически определит платформу\n3️⃣ Выберите качество для скачивания\n4️⃣ Получите видео или аудио\n\nДоступные команды:\n/start - Главное меню\n/support - Поддержать проект\n/help - Помощь\n\nПоддерживаемые платформы:\n✅ YouTube\n✅ YouTube Shorts\n✅ TikTok\n\nВопросы и предложения: @kz777LLL",
         parse_mode="HTML",
         reply_markup=InlineKeyboardMarkup(inline_keyboard=[
             [InlineKeyboardButton(text="⬅️ Назад", callback_data="back_to_menu")]
@@ -200,10 +180,7 @@ async def show_support_menu(message: Message):
     
     if user and user[4]:
         await message.answer(
-            texts.get("already_premium", "🌟 У вас активна подписка!").format(
-                until=user[5].strftime("%d.%m.%Y %H:%M") if user[5] else "",
-                subscription=user[6] or ""
-            ),
+            f"🌟 У вас активная подписка!\n\nСрок действия: {user[5].strftime('%d.%m.%Y %H:%M') if user[5] else ''}\nТип: {user[6] or ''}\n\nСпасибо за поддержку проекта! ❤️",
             parse_mode="HTML",
             reply_markup=InlineKeyboardMarkup(inline_keyboard=[
                 [InlineKeyboardButton(text="⬅️ Назад", callback_data="back_to_menu")]
@@ -218,13 +195,7 @@ async def show_support_menu(message: Message):
     ])
     
     await message.answer(
-        texts.get("premium_features", "").format(
-            price1=config.PRICE_1_MONTH, stars1=config.STARS_1_MONTH,
-            price3=config.PRICE_3_MONTH, stars3=config.STARS_3_MONTH,
-            price6=config.PRICE_6_MONTH, stars6=config.STARS_6_MONTH,
-            price12=config.PRICE_12_MONTH, stars12=config.STARS_12_MONTH,
-            pricelife=config.PRICE_LIFETIME, starslife=config.STARS_LIFETIME
-        ),
+        f"❤️ Поддержать проект\n\nСпасибо, что пользуетесь ботом!\n\nКаждая ваша поддержка помогает оплачивать сервер, развивать проект, повышать скорость работы и добавлять новые платформы.\n\nВ знак благодарности вы получите:\n\n🚫 Полное отключение рекламы\n⚡ Приоритетную обработку запросов\n📥 Одновременное скачивание нескольких файлов\n📃 Скачивание YouTube-плейлистов\n🆕 Ранний доступ ко всем новым функциям\n\nВыберите удобный срок поддержки ниже.\n\n💰 Цены:\n\n1 месяц - {config.PRICE_1_MONTH} ₸ ({config.STARS_1_MONTH} ⭐)\n3 месяца - {config.PRICE_3_MONTH} ₸ ({config.STARS_3_MONTH} ⭐)\n6 месяцев - {config.PRICE_6_MONTH} ₸ ({config.STARS_6_MONTH} ⭐)\n12 месяцев - {config.PRICE_12_MONTH} ₸ ({config.STARS_12_MONTH} ⭐)\nНавсегда - {config.PRICE_LIFETIME} ₸ ({config.STARS_LIFETIME} ⭐)",
         parse_mode="HTML",
         reply_markup=keyboard
     )
@@ -295,11 +266,11 @@ async def successful_payment_handler(message: Message):
 
 
 # ============================================
-# КОНЕЦ ЧАСТИ 1
+# КОНЕЦ ЧАСТИ 2
 # ============================================
-# main.py - ЧАСТЬ 2
+
 # ============================================
-# ОБРАБОТКА ССЫЛОК, КАЧЕСТВА, СКАЧИВАНИЕ, АДМИН, ЗАПУСК
+# ЧАСТЬ 3: ОБРАБОТКА ССЫЛОК, СКАЧИВАНИЕ, АДМИН, ЗАПУСК
 # ============================================
 
 @dp.message(StateFilter(DownloadStates.waiting_for_url))
@@ -314,16 +285,16 @@ async def handle_url(message: Message, state: FSMContext):
     url = message.text.strip()
     
     if not url.startswith(('http://', 'https://')):
-        await message.answer(texts.get("invalid_url", "❌ Отправьте корректную ссылку"))
+        await message.answer("❌ Пожалуйста, отправьте корректную ссылку на видео с YouTube или TikTok.")
         return
     
     platform = detect_platform(url)
     
     if platform == 'unknown':
-        await message.answer(texts.get("unsupported_platform", "❌ Платформа не поддерживается"))
+        await message.answer("❌ Эта платформа пока не поддерживается.\n\nСейчас доступны:\n✅ YouTube\n✅ YouTube Shorts\n✅ TikTok\n\nДругие платформы будут добавлены в следующих обновлениях.")
         return
     
-    wait_msg = await message.answer(texts.get("processing", "⏳ Обрабатываю ссылку..."))
+    wait_msg = await message.answer("⏳ Обрабатываю вашу ссылку...\n\nПожалуйста, подождите.")
     
     try:
         if platform == 'youtube':
@@ -332,12 +303,12 @@ async def handle_url(message: Message, state: FSMContext):
             info = tiktok.get_video_info(url)
         else:
             await wait_msg.delete()
-            await message.answer(texts.get("unsupported_platform", "❌ Платформа не поддерживается"))
+            await message.answer("❌ Эта платформа пока не поддерживается.")
             return
         
         if not info:
             await wait_msg.delete()
-            await message.answer(texts.get("download_error", "❌ Ошибка получения информации"))
+            await message.answer("❌ Произошла ошибка при скачивании видео.\n\nПожалуйста, попробуйте позже или отправьте другую ссылку.")
             return
         
         await state.update_data({
@@ -350,12 +321,7 @@ async def handle_url(message: Message, state: FSMContext):
         views = info.get('view_count', 0)
         views_str = f"{views/1000000:.1f}M" if views > 1000000 else f"{views/1000:.1f}K" if views > 1000 else str(views)
         
-        info_text = texts.get("video_info", "📹 {title}").format(
-            title=info.get('title', 'Без названия')[:100],
-            uploader=info.get('uploader', 'Неизвестно'),
-            duration=duration_str,
-            views=views_str
-        )
+        info_text = f"📹 <b>{info.get('title', 'Без названия')[:100]}</b>\n\n👤 Автор: {info.get('uploader', 'Неизвестно')}\n⏱ Длительность: {duration_str}\n📊 Просмотров: {views_str}\n\nВыберите действие:"
         
         keyboard = InlineKeyboardMarkup(inline_keyboard=[
             [InlineKeyboardButton(text="🎬 Доступные качества", callback_data="show_qualities")],
@@ -371,7 +337,7 @@ async def handle_url(message: Message, state: FSMContext):
     except Exception as e:
         logger.error(f"Ошибка обработки ссылки: {e}")
         await wait_msg.delete()
-        await message.answer(texts.get("download_error", "❌ Произошла ошибка"))
+        await message.answer("❌ Произошла ошибка при скачивании видео.\n\nПожалуйста, попробуйте позже или отправьте другую ссылку.")
 
 
 @dp.callback_query(F.data == "show_qualities")
@@ -382,12 +348,12 @@ async def cb_show_qualities(callback: CallbackQuery, state: FSMContext):
     info = data.get('info')
     
     if not info:
-        await callback.message.answer(texts.get("download_error", "❌ Ошибка"))
+        await callback.message.answer("❌ Произошла ошибка.")
         return
     
     formats = info.get('formats', [])
     if not formats:
-        await callback.message.answer(texts.get("no_qualities", "❌ Нет доступных качеств"))
+        await callback.message.answer("❌ Не удалось найти доступные качества для этого видео.")
         return
     
     keyboard_buttons = []
@@ -403,7 +369,7 @@ async def cb_show_qualities(callback: CallbackQuery, state: FSMContext):
     keyboard = InlineKeyboardMarkup(inline_keyboard=keyboard_buttons)
     
     await callback.message.edit_text(
-        texts.get("select_quality", "🎬 Выберите качество:"),
+        "🎬 Доступные качества:\n\nВыберите качество для скачивания:",
         reply_markup=keyboard
     )
 
@@ -413,7 +379,7 @@ async def cb_back_to_video(callback: CallbackQuery, state: FSMContext):
     await callback.answer()
     await state.clear()
     await callback.message.delete()
-    await callback.message.answer(texts.get("download_prompt", "📥 Отправьте ссылку на видео:"))
+    await callback.message.answer("📥 Отправьте мне ссылку на видео с YouTube или TikTok.\n\nЯ автоматически определю платформу и предложу доступные качества.")
 
 
 @dp.callback_query(F.data.startswith("quality_"))
@@ -427,7 +393,7 @@ async def cb_download_quality(callback: CallbackQuery, state: FSMContext):
     info = data.get('info')
     
     if not url:
-        await callback.message.answer(texts.get("download_error", "❌ Ошибка"))
+        await callback.message.answer("❌ Произошла ошибка.")
         return
     
     selected_format = None
@@ -440,10 +406,7 @@ async def cb_download_quality(callback: CallbackQuery, state: FSMContext):
     size_text = format_size(selected_format.get('filesize', 0)) if selected_format else 'Unknown'
     
     await callback.message.edit_text(
-        texts.get("downloading", "⬇️ Скачиваю...").format(
-            quality=quality_text,
-            size=size_text
-        )
+        f"⬇️ Начинаю скачивание...\n\nКачество: {quality_text}\nРазмер: {size_text}\n\nПожалуйста, подождите."
     )
     
     try:
@@ -452,11 +415,11 @@ async def cb_download_quality(callback: CallbackQuery, state: FSMContext):
         elif platform == 'tiktok':
             filepath = tiktok.download_video(url, format_id)
         else:
-            await callback.message.answer(texts.get("download_error", "❌ Ошибка"))
+            await callback.message.answer("❌ Произошла ошибка.")
             return
         
         if not filepath:
-            await callback.message.answer(texts.get("download_error", "❌ Ошибка скачивания"))
+            await callback.message.answer("❌ Произошла ошибка при скачивании видео.\n\nПожалуйста, попробуйте позже или отправьте другую ссылку.")
             return
         
         file_size = os.path.getsize(filepath)
@@ -484,7 +447,7 @@ async def cb_download_quality(callback: CallbackQuery, state: FSMContext):
         
     except Exception as e:
         logger.error(f"Ошибка скачивания: {e}")
-        await callback.message.answer(texts.get("download_error", "❌ Ошибка скачивания"))
+        await callback.message.answer("❌ Произошла ошибка при скачивании видео.\n\nПожалуйста, попробуйте позже или отправьте другую ссылку.")
 
 
 @dp.callback_query(F.data == "download_mp3")
@@ -497,10 +460,10 @@ async def cb_download_mp3(callback: CallbackQuery, state: FSMContext):
     info = data.get('info')
     
     if not url:
-        await callback.message.answer(texts.get("download_error", "❌ Ошибка"))
+        await callback.message.answer("❌ Произошла ошибка.")
         return
     
-    await callback.message.edit_text("🎵 Скачиваю аудио...")
+    await callback.message.edit_text("🎵 Скачиваю аудио...\n\nПожалуйста, подождите.")
     
     try:
         if platform == 'youtube':
@@ -508,11 +471,11 @@ async def cb_download_mp3(callback: CallbackQuery, state: FSMContext):
         elif platform == 'tiktok':
             filepath = tiktok.download_audio(url)
         else:
-            await callback.message.answer(texts.get("download_error", "❌ Ошибка"))
+            await callback.message.answer("❌ Произошла ошибка.")
             return
         
         if not filepath:
-            await callback.message.answer(texts.get("download_error", "❌ Ошибка скачивания"))
+            await callback.message.answer("❌ Произошла ошибка при скачивании аудио.\n\nПожалуйста, попробуйте позже или отправьте другую ссылку.")
             return
         
         file_size = os.path.getsize(filepath)
@@ -543,7 +506,7 @@ async def cb_download_mp3(callback: CallbackQuery, state: FSMContext):
         
     except Exception as e:
         logger.error(f"Ошибка скачивания MP3: {e}")
-        await callback.message.answer(texts.get("download_error", "❌ Ошибка скачивания"))
+        await callback.message.answer("❌ Произошла ошибка при скачивании аудио.\n\nПожалуйста, попробуйте позже или отправьте другую ссылку.")
 
 
 @dp.callback_query(F.data == "show_thumbnail")
@@ -556,7 +519,7 @@ async def cb_show_thumbnail(callback: CallbackQuery, state: FSMContext):
     info = data.get('info')
     
     if not url:
-        await callback.message.answer(texts.get("download_error", "❌ Ошибка"))
+        await callback.message.answer("❌ Произошла ошибка.")
         return
     
     await callback.message.edit_text("🖼 Загружаю превью...")
@@ -567,7 +530,7 @@ async def cb_show_thumbnail(callback: CallbackQuery, state: FSMContext):
         elif platform == 'tiktok':
             filepath = tiktok.download_thumbnail(url)
         else:
-            await callback.message.answer(texts.get("download_error", "❌ Ошибка"))
+            await callback.message.answer("❌ Произошла ошибка.")
             return
         
         if not filepath:
@@ -581,7 +544,7 @@ async def cb_show_thumbnail(callback: CallbackQuery, state: FSMContext):
         
         await callback.message.answer_photo(
             photo=photo_file,
-            caption=texts.get("thumbnail_success", "🖼 Превью").format(title=title)
+            caption=f"🖼 Превью видео:\n\n{title}"
         )
         
         if config.DELETE_AFTER_SEND:
@@ -607,14 +570,7 @@ async def cb_show_info(callback: CallbackQuery, state: FSMContext):
     views = info.get('view_count', 0)
     views_str = f"{views/1000000:.1f}M" if views > 1000000 else f"{views/1000:.1f}K" if views > 1000 else str(views)
     
-    info_text = texts.get("info_text", "ℹ️ Информация").format(
-        title=info.get('title', 'Без названия'),
-        uploader=info.get('uploader', 'Неизвестно'),
-        duration=duration_str,
-        views=views_str,
-        date=datetime.now().strftime("%d.%m.%Y"),
-        description=info.get('description', 'Нет описания')[:200]
-    )
+    info_text = f"ℹ️ Информация о видео\n\n📹 Название: {info.get('title', 'Без названия')}\n👤 Автор: {info.get('uploader', 'Неизвестно')}\n⏱ Длительность: {duration_str}\n📊 Просмотров: {views_str}\n📅 Дата загрузки: {datetime.now().strftime('%d.%m.%Y')}\n\n📝 Описание:\n{info.get('description', 'Нет описания')[:200]}"
     
     await callback.message.edit_text(
         info_text,
@@ -671,5 +627,5 @@ if __name__ == "__main__":
 
 
 # ============================================
-# КОНЕЦ ЧАСТИ 2
+# КОНЕЦ ЧАСТИ 3
 # ============================================
