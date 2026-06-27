@@ -25,3 +25,6 @@ TEMP_FOLDER = "temp"
 DELETE_AFTER_SEND = True
 FLOOD_SECONDS = 3
 LOG_FILE = "bot.log"
+
+MAX_SIMULTANEOUS_DOWNLOADS = 2
+QUEUE_MESSAGE = "⏳ Ваш запрос в очереди. Позиция: {position}"
