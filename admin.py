@@ -1,376 +1,297 @@
 # admin.py
-import asyncio
 import logging
-from datetime import datetime
+import asyncio
+from aiogram import Router, F
 from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
+from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
+from aiogram import Bot
 
-from utils import is_admin, format_size, get_subscription_type_text
+import database as db
 from config import ADMIN_ID
+from utils import format_subscription_type
 
 logger = logging.getLogger(__name__)
+router = Router()
 
 
-# Состояния для админ-панели
+def is_admin(user_id: int) -> bool:
+    return user_id == ADMIN_ID
+
+
 class AdminStates(StatesGroup):
-    waiting_for_user_id = State()
-    waiting_for_subscription_days = State()
-    waiting_for_broadcast = State()
-    waiting_for_user_info = State()
+    broadcast_text = State()
+    add_sub_user = State()
+    add_sub_days = State()
+    del_sub_user = State()
+    ban_user = State()
+    unban_user = State()
 
 
-class AdminHandler:
-    def __init__(self, bot, db):
-        self.bot = bot
-        self.db = db
+def admin_kb() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [
+            InlineKeyboardButton(text="📊 Статистика", callback_data="admin_stats"),
+            InlineKeyboardButton(text="📨 Рассылка", callback_data="admin_broadcast"),
+        ],
+        [
+            InlineKeyboardButton(text="⭐ Выдать подписку", callback_data="admin_add_sub"),
+            InlineKeyboardButton(text="❌ Убрать подписку", callback_data="admin_del_sub"),
+        ],
+        [
+            InlineKeyboardButton(text="🚫 Бан", callback_data="admin_ban"),
+            InlineKeyboardButton(text="✅ Разбан", callback_data="admin_unban"),
+        ],
+        [InlineKeyboardButton(text="⬅️ Назад", callback_data="back_start")],
+    ])
 
-    # ============================================
-    # ГЛАВНАЯ АДМИН-ПАНЕЛЬ
-    # ============================================
 
-    async def show_admin_panel(self, message: Message, edit: bool = False):
-        """Показать админ-панель"""
-        user_id = message.from_user.id if hasattr(message, 'from_user') else message.chat.id
+def back_admin_kb() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="⬅️ Назад", callback_data="admin_back")]
+    ])
 
-        if not is_admin(user_id):
-            await message.answer("⛔ Нет доступа")
-            return
 
-        stats = self.db.get_stats()
+@router.message(Command("admin"))
+async def cmd_admin(message: Message):
+    if not is_admin(message.from_user.id):
+        await message.answer("⛔ Нет доступа")
+        return
+    await message.answer("🛠 Панель администратора", reply_markup=admin_kb())
 
-        text = (
-            f"🔐 Админ-панель\n\n"
-            f"👥 Пользователей: {stats['total_users']}\n"
-            f"❤️ Premium: {stats['premium_users']}\n"
-            f"📥 Скачиваний: {stats['total_downloads']}\n"
-            f"📅 За сутки: {stats['downloads_today']}\n\n"
-            f"──────────────"
-        )
 
-        keyboard = InlineKeyboardMarkup(inline_keyboard=[
-            [InlineKeyboardButton(text="📊 Статистика", callback_data="admin_stats")],
-            [InlineKeyboardButton(text="❤️ Выдать подписку", callback_data="admin_give")],
-            [InlineKeyboardButton(text="❌ Снять подписку", callback_data="admin_remove")],
-            [InlineKeyboardButton(text="👤 Пользователь", callback_data="admin_user")],
-            [InlineKeyboardButton(text="📢 Рассылка", callback_data="admin_broadcast")],
-            [InlineKeyboardButton(text="⬅️ Назад", callback_data="back_to_menu")]
-        ])
+@router.callback_query(F.data == "admin_back")
+async def admin_back(call: CallbackQuery, state: FSMContext):
+    if not is_admin(call.from_user.id):
+        await call.answer("⛔ Нет доступа")
+        return
+    await state.clear()
+    await call.message.edit_text("🛠 Панель администратора", reply_markup=admin_kb())
 
-        if edit:
-            await message.edit_text(text, reply_markup=keyboard)
-        else:
-            await message.answer(text, reply_markup=keyboard)
 
-    # ============================================
-    # СТАТИСТИКА
-    # ============================================
+@router.callback_query(F.data == "admin_stats")
+async def admin_stats(call: CallbackQuery):
+    if not is_admin(call.from_user.id):
+        await call.answer("⛔ Нет доступа")
+        return
+    stats = db.get_stats()
+    text = (
+        f"📊 Статистика\n\n"
+        f"👥 Всего пользователей: {stats['total_users']}\n"
+        f"⭐ Премиум: {stats['premium_users']}\n"
+        f"📥 Всего скачиваний: {stats['total_downloads']}"
+    )
+    await call.message.edit_text(text, reply_markup=back_admin_kb())
 
-    async def show_stats(self, callback: CallbackQuery):
-        """Показать развернутую статистику"""
-        stats = self.db.get_stats()
 
-        text = (
-            f"📊 Статистика\n\n"
-            f"👥 Всего пользователей: {stats['total_users']}\n"
-            f"❤️ Активных подписчиков: {stats['premium_users']}\n"
-            f"🆕 Новых за сутки: {stats['new_users_today']}\n\n"
-            f"📥 Всего скачиваний: {stats['total_downloads']}\n"
-            f"📥 За сутки: {stats['downloads_today']}\n\n"
-            f"📅 {datetime.now().strftime('%d.%m.%Y %H:%M')}"
-        )
+@router.callback_query(F.data == "admin_broadcast")
+async def admin_broadcast_start(call: CallbackQuery, state: FSMContext):
+    if not is_admin(call.from_user.id):
+        await call.answer("⛔ Нет доступа")
+        return
+    await state.set_state(AdminStates.broadcast_text)
+    await call.message.edit_text(
+        "📨 Введите текст рассылки (только обычным пользователям):\n\n"
+        "Для отмены — /admin",
+        reply_markup=back_admin_kb()
+    )
 
-        keyboard = InlineKeyboardMarkup(inline_keyboard=[
-            [InlineKeyboardButton(text="⬅️ Назад", callback_data="admin_panel")]
-        ])
 
-        await callback.message.edit_text(text, reply_markup=keyboard)
-
-    # ============================================
-    # ВЫДАТЬ ПОДПИСКУ
-    # ============================================
-
-    async def start_give_subscription(self, callback: CallbackQuery, state: FSMContext):
-        """Начать выдачу подписки"""
-        await state.set_state(AdminStates.waiting_for_user_id)
-        await state.update_data(action="give")
-
-        text = "❤️ Выдать подписку\n\nВведите Telegram ID пользователя:"
-        keyboard = InlineKeyboardMarkup(inline_keyboard=[
-            [InlineKeyboardButton(text="⬅️ Отмена", callback_data="admin_panel")]
-        ])
-
-        await callback.message.edit_text(text, reply_markup=keyboard)
-
-    async def process_user_id(self, message: Message, state: FSMContext):
-        """Обработка введенного ID"""
+@router.message(AdminStates.broadcast_text)
+async def admin_broadcast_send(message: Message, state: FSMContext, bot: Bot):
+    if not is_admin(message.from_user.id):
+        return
+    
+    if not message.text:
+        await message.answer("❌ Текст не может быть пустым")
+        return
+    
+    await state.clear()
+    users = db.get_regular_users()
+    sent = 0
+    failed = 0
+    status_msg = await message.answer(f"⏳ Отправка рассылки {len(users)} пользователям...")
+    
+    for uid in users:
         try:
-            user_id = int(message.text.strip())
-            user = self.db.get_user(user_id)
-
-            if not user:
-                await message.answer("❌ Пользователь не найден")
-                return
-
-            await state.update_data(target_user_id=user_id)
-            await state.set_state(AdminStates.waiting_for_subscription_days)
-
-            text = (
-                f"👤 Пользователь найден: {user_id}\n\n"
-                f"Выберите срок подписки:"
-            )
-
-            keyboard = InlineKeyboardMarkup(inline_keyboard=[
-                [InlineKeyboardButton(text="1 месяц", callback_data="admin_sub_30")],
-                [InlineKeyboardButton(text="3 месяца", callback_data="admin_sub_90")],
-                [InlineKeyboardButton(text="6 месяцев", callback_data="admin_sub_180")],
-                [InlineKeyboardButton(text="12 месяцев", callback_data="admin_sub_365")],
-                [InlineKeyboardButton(text="Навсегда", callback_data="admin_sub_99999")],
-                [InlineKeyboardButton(text="⬅️ Отмена", callback_data="admin_panel")]
-            ])
-
-            await message.answer(text, reply_markup=keyboard)
-
-        except ValueError:
-            await message.answer("❌ Введите корректный ID (только цифры)")
-
-    async def process_give_subscription(self, callback: CallbackQuery, state: FSMContext):
-        """Выдать подписку"""
-        data = await state.get_data()
-        user_id = data.get('target_user_id')
-        days = int(callback.data.replace("admin_sub_", ""))
-
-        if not user_id:
-            await callback.message.edit_text("❌ Ошибка, попробуйте снова")
-            await state.clear()
-            return
-
-        sub_type = get_subscription_type_text(days)
-
-        # Выдаем подписку
-        self.db.set_premium(user_id, sub_type, days)
-        self.db.log_payment(user_id, 0, "admin_give", sub_type)
-
-        await state.clear()
-
-        text = (
-            f"✅ Подписка выдана!\n\n"
-            f"👤 Пользователь: {user_id}\n"
-            f"📅 Срок: {sub_type}"
-        )
-
-        keyboard = InlineKeyboardMarkup(inline_keyboard=[
-            [InlineKeyboardButton(text="⬅️ Назад", callback_data="admin_panel")]
-        ])
-
-        await callback.message.edit_text(text, reply_markup=keyboard)
-
-        # Уведомление пользователю
-        try:
-            await self.bot.send_message(
-                user_id,
-                f"🌟 Вам выдана подписка: {sub_type}\nСпасибо за поддержку проекта! ❤️"
-            )
-        except:
-            pass
-
-    # ============================================
-    # СНЯТЬ ПОДПИСКУ
-    # ============================================
-
-    async def start_remove_subscription(self, callback: CallbackQuery, state: FSMContext):
-        """Начать снятие подписки"""
-        await state.set_state(AdminStates.waiting_for_user_id)
-        await state.update_data(action="remove")
-
-        text = "❌ Снять подписку\n\nВведите Telegram ID пользователя:"
-        keyboard = InlineKeyboardMarkup(inline_keyboard=[
-            [InlineKeyboardButton(text="⬅️ Отмена", callback_data="admin_panel")]
-        ])
-
-        await callback.message.edit_text(text, reply_markup=keyboard)
-
-    async def process_remove_subscription(self, message: Message, state: FSMContext):
-        """Снять подписку"""
-        try:
-            user_id = int(message.text.strip())
-            user = self.db.get_user(user_id)
-
-            if not user:
-                await message.answer("❌ Пользователь не найден")
-                return
-
-            if not user[4]:  # is_premium
-                await message.answer("❌ У пользователя нет активной подписки")
-                return
-
-            self.db.remove_premium(user_id)
-            await state.clear()
-
-            text = (
-                f"✅ Подписка снята!\n\n"
-                f"👤 Пользователь: {user_id}"
-            )
-
-            keyboard = InlineKeyboardMarkup(inline_keyboard=[
-                [InlineKeyboardButton(text="⬅️ Назад", callback_data="admin_panel")]
-            ])
-
-            await message.answer(text, reply_markup=keyboard)
-
-            # Уведомление пользователю
-            try:
-                await self.bot.send_message(
-                    user_id,
-                    "⏰ Ваша подписка отключена.\n\nЧтобы продолжить пользоваться преимуществами, оформите новую подписку в разделе '❤️ Поддержать проект'."
-                )
-            except:
-                pass
-
-        except ValueError:
-            await message.answer("❌ Введите корректный ID (только цифры)")
-
-    # ============================================
-    # ИНФОРМАЦИЯ О ПОЛЬЗОВАТЕЛЕ
-    # ============================================
-
-    async def start_user_info(self, callback: CallbackQuery, state: FSMContext):
-        """Начать поиск пользователя"""
-        await state.set_state(AdminStates.waiting_for_user_info)
-
-        text = "👤 Информация о пользователе\n\nВведите Telegram ID:"
-        keyboard = InlineKeyboardMarkup(inline_keyboard=[
-            [InlineKeyboardButton(text="⬅️ Отмена", callback_data="admin_panel")]
-        ])
-
-        await callback.message.edit_text(text, reply_markup=keyboard)
-
-    async def process_user_info(self, message: Message, state: FSMContext):
-        """Показать информацию о пользователе"""
-        try:
-            user_id = int(message.text.strip())
-            user = self.db.get_user(user_id)
-
-            if not user:
-                await message.answer("❌ Пользователь не найден")
-                return
-
-            await state.clear()
-
-            # user: user_id, username, first_name, last_name, joined_date, is_premium, premium_until, subscription_type, total_downloads, is_active
-            premium_status = "✅ Да" if user[5] else "❌ Нет"
-            premium_until = user[6].strftime("%d.%m.%Y %H:%M") if user[6] else "—"
-            subscription_type = user[7] or "—"
-            username = f"@{user[1]}" if user[1] else "—"
-
-            text = (
-                f"👤 Информация о пользователе\n\n"
-                f"🆔 ID: {user[0]}\n"
-                f"👤 Имя: {user[2]} {user[3] or ''}\n"
-                f"📱 Username: {username}\n"
-                f"📅 Регистрация: {user[4].strftime('%d.%m.%Y %H:%M')}\n\n"
-                f"❤️ Premium: {premium_status}\n"
-                f"📅 До: {premium_until}\n"
-                f"📋 Тип: {subscription_type}\n\n"
-                f"📥 Скачиваний: {user[8]}"
-            )
-
-            keyboard = InlineKeyboardMarkup(inline_keyboard=[
-                [InlineKeyboardButton(text="⬅️ Назад", callback_data="admin_panel")]
-            ])
-
-            await message.answer(text, reply_markup=keyboard)
-
-        except ValueError:
-            await message.answer("❌ Введите корректный ID (только цифры)")
-
-    # ============================================
-    # РАССЫЛКА
-    # ============================================
-
-    async def start_broadcast(self, callback: CallbackQuery, state: FSMContext):
-        """Начать рассылку"""
-        await state.set_state(AdminStates.waiting_for_broadcast)
-
-        text = (
-            "📢 Рассылка\n\n"
-            "Перешлите сообщение, которое хотите отправить всем пользователям.\n\n"
-            "⚠️ Сообщение будет отправлено как есть (Forward).\n"
-            "💡 Премиум-пользователи получат уведомление, но без рекламы."
-        )
-
-        keyboard = InlineKeyboardMarkup(inline_keyboard=[
-            [InlineKeyboardButton(text="⬅️ Отмена", callback_data="admin_panel")]
-        ])
-
-        await callback.message.edit_text(text, reply_markup=keyboard)
-
-    async def process_broadcast(self, message: Message, state: FSMContext):
-        """Обработка рассылки"""
-        # Проверяем что это пересланное сообщение
-        if not message.forward_from and not message.forward_sender_name and not message.forward_from_chat:
-            await message.answer("⚠️ Перешлите сообщение (Forward), а не копируйте текст")
-            return
-
-        await message.answer("⏳ Начинаю рассылку...")
-
-        users = self.db.get_all_users()
-        total = len(users)
-        success = 0
-        errors = 0
-
-        for user in users:
-            user_id = user[0]
-            user_data = self.db.get_user(user_id)
-
-            # Премиум-пользователи получают только уведомление (без рекламы в тексте)
-            # Но мы отправляем всем одно и то же сообщение
-            try:
-                await message.forward(user_id)
-                success += 1
-            except Exception as e:
-                errors += 1
-                logger.error(f"Ошибка рассылки {user_id}: {e}")
-
+            await bot.send_message(uid, message.text)
+            sent += 1
             await asyncio.sleep(0.05)
+        except Exception:
+            failed += 1
+    
+    await status_msg.edit_text(
+        f"✅ Рассылка завершена\n\n"
+        f"✔️ Отправлено: {sent}\n"
+        f"❌ Ошибок: {failed}"
+    )
 
-        result_text = (
-            f"✅ Рассылка завершена!\n\n"
-            f"✅ Успешно: {success}\n"
-            f"❌ Ошибок: {errors}\n"
-            f"📤 Всего отправлено: {total}"
-        )
 
-        await message.answer(result_text)
-        await state.clear()
+@router.callback_query(F.data == "admin_add_sub")
+async def admin_add_sub_start(call: CallbackQuery, state: FSMContext):
+    if not is_admin(call.from_user.id):
+        await call.answer("⛔ Нет доступа")
+        return
+    await state.set_state(AdminStates.add_sub_user)
+    await call.message.edit_text(
+        "⭐ Введите user_id пользователя:",
+        reply_markup=back_admin_kb()
+    )
 
-    # ============================================
-    # ОБРАБОТЧИК CALLBACK
-    # ============================================
 
-    async def handle_admin_callback(self, callback: CallbackQuery, state: FSMContext):
-        """Обработка всех admin_* callback"""
-        await callback.answer()
+@router.message(AdminStates.add_sub_user)
+async def admin_add_sub_user(message: Message, state: FSMContext):
+    if not is_admin(message.from_user.id):
+        return
+    
+    if not message.text:
+        await message.answer("❌ Введите ID")
+        return
+    
+    try:
+        uid = int(message.text.strip())
+    except ValueError:
+        await message.answer("❌ Неверный ID. Введите число.")
+        return
+    
+    # Проверяем существование пользователя
+    user = db.get_user(uid)
+    if not user:
+        await message.answer(f"❌ Пользователь с ID {uid} не найден в базе.")
+        return
+    
+    await state.update_data(target_uid=uid)
+    await state.set_state(AdminStates.add_sub_days)
+    
+    kb = InlineKeyboardMarkup(inline_keyboard=[
+        [
+            InlineKeyboardButton(text="1 месяц", callback_data="givesub_1_month"),
+            InlineKeyboardButton(text="3 месяца", callback_data="givesub_3_months"),
+        ],
+        [
+            InlineKeyboardButton(text="6 месяцев", callback_data="givesub_6_months"),
+            InlineKeyboardButton(text="12 месяцев", callback_data="givesub_12_months"),
+        ],
+        [InlineKeyboardButton(text="Навсегда", callback_data="givesub_lifetime")],
+        [InlineKeyboardButton(text="⬅️ Назад", callback_data="admin_back")],
+    ])
+    await message.answer(f"Выберите срок подписки для {uid}:", reply_markup=kb)
 
-        action = callback.data
 
-        if action == "admin_panel":
-            await self.show_admin_panel(callback.message, edit=True)
+@router.callback_query(F.data.startswith("givesub_"))
+async def admin_give_sub(call: CallbackQuery, state: FSMContext):
+    if not is_admin(call.from_user.id):
+        await call.answer("⛔ Нет доступа")
+        return
+    
+    from payment import PLANS
+    plan_key = call.data.replace("givesub_", "")
+    data = await state.get_data()
+    uid = data.get("target_uid")
+    
+    if not uid:
+        await call.answer("❌ Ошибка: пользователь не найден")
+        return
+    
+    if plan_key not in PLANS:
+        await call.answer("❌ Неверный план")
+        return
+    
+    plan = PLANS[plan_key]
+    db.add_subscription(uid, plan_key, plan["days"])
+    await state.clear()
+    
+    await call.message.edit_text(
+        f"✅ Подписка «{plan['label']}» выдана пользователю {uid}.",
+        reply_markup=back_admin_kb()
+    )
 
-        elif action == "admin_stats":
-            await self.show_stats(callback)
 
-        elif action == "admin_give":
-            await self.start_give_subscription(callback, state)
+@router.callback_query(F.data == "admin_del_sub")
+async def admin_del_sub_start(call: CallbackQuery, state: FSMContext):
+    if not is_admin(call.from_user.id):
+        await call.answer("⛔ Нет доступа")
+        return
+    
+    await state.update_data(action="del_sub")
+    await state.set_state(AdminStates.del_sub_user)
+    await call.message.edit_text(
+        "❌ Введите user_id для снятия подписки:",
+        reply_markup=back_admin_kb()
+    )
 
-        elif action == "admin_remove":
-            await self.start_remove_subscription(callback, state)
 
-        elif action == "admin_user":
-            await self.start_user_info(callback, state)
+@router.callback_query(F.data == "admin_ban")
+async def admin_ban_start(call: CallbackQuery, state: FSMContext):
+    if not is_admin(call.from_user.id):
+        await call.answer("⛔ Нет доступа")
+        return
+    await state.set_state(AdminStates.ban_user)
+    await state.update_data(action="ban")
+    await call.message.edit_text("🚫 Введите user_id для бана:", reply_markup=back_admin_kb())
 
-        elif action == "admin_broadcast":
-            await self.start_broadcast(callback, state)
 
-        elif action.startswith("admin_sub_"):
-            await self.process_give_subscription(callback, state)
+@router.callback_query(F.data == "admin_unban")
+async def admin_unban_start(call: CallbackQuery, state: FSMContext):
+    if not is_admin(call.from_user.id):
+        await call.answer("⛔ Нет доступа")
+        return
+    await state.set_state(AdminStates.ban_user)
+    await state.update_data(action="unban")
+    await call.message.edit_text("✅ Введите user_id для разбана:", reply_markup=back_admin_kb())
+
+
+@router.message(AdminStates.ban_user)
+async def admin_action_ban(message: Message, state: FSMContext):
+    if not is_admin(message.from_user.id):
+        return
+    
+    if not message.text:
+        await message.answer("❌ Введите ID")
+        return
+    
+    data = await state.get_data()
+    action = data.get("action", "ban")
+    
+    try:
+        uid = int(message.text.strip())
+    except ValueError:
+        await message.answer("❌ Неверный ID. Введите число.")
+        return
+    
+    await state.clear()
+    
+    if action == "ban":
+        db.ban_user(uid)
+        await message.answer(f"🚫 Пользователь {uid} заблокирован.", reply_markup=back_admin_kb())
+    elif action == "unban":
+        db.unban_user(uid)
+        await message.answer(f"✅ Пользователь {uid} разблокирован.", reply_markup=back_admin_kb())
+
+
+@router.message(AdminStates.del_sub_user)
+async def admin_action_del_sub(message: Message, state: FSMContext):
+    if not is_admin(message.from_user.id):
+        return
+    
+    if not message.text:
+        await message.answer("❌ Введите ID")
+        return
+    
+    try:
+        uid = int(message.text.strip())
+    except ValueError:
+        await message.answer("❌ Неверный ID. Введите число.")
+        return
+    
+    await state.clear()
+    
+    # Проверяем есть ли подписка
+    sub = db.get_subscription(uid)
+    if not sub:
+        await message.answer(f"❌ У пользователя {uid} нет активной подписки.", reply_markup=back_admin_kb())
+        return
+    
+    db.remove_subscription(uid)
+    await message.answer(f"❌ Подписка пользователя {uid} удалена.", reply_markup=back_admin_kb())
