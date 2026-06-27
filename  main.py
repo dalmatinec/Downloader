@@ -1,5 +1,6 @@
+# main.py - ЧАСТЬ 1
 # ============================================
-# ЧАСТЬ 1: ИМПОРТЫ, ИНИЦИАЛИЗАЦИЯ, КОМАНДЫ
+# ИМПОРТЫ, ИНИЦИАЛИЗАЦИЯ, КЛАВИАТУРЫ, КОМАНДЫ, ГЛАВНОЕ МЕНЮ
 # ============================================
 
 import asyncio
@@ -45,6 +46,34 @@ class DownloadStates(StatesGroup):
 
 
 # ============================================
+# КЛАВИАТУРЫ
+# ============================================
+
+def get_main_keyboard():
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="📥 Скачать", callback_data="download")],
+        [InlineKeyboardButton(text="❤️ Поддержать проект", callback_data="support"),
+         InlineKeyboardButton(text="💼 Разработка", callback_data="development")],
+        [InlineKeyboardButton(text="⚙️ Настройки", callback_data="settings"),
+         InlineKeyboardButton(text="❓ Помощь", callback_data="help")]
+    ])
+
+def get_video_keyboard():
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="🎬 Качества", callback_data="show_qualities")],
+        [InlineKeyboardButton(text="🎵 MP3", callback_data="download_mp3")],
+        [InlineKeyboardButton(text="🖼 Превью", callback_data="show_thumbnail")],
+        [InlineKeyboardButton(text="ℹ️ Информация", callback_data="show_info")],
+        [InlineKeyboardButton(text="⬅️ Назад", callback_data="back_to_menu")]
+    ])
+
+def get_back_keyboard():
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="⬅️ Назад", callback_data="back_to_menu")]
+    ])
+
+
+# ============================================
 # КОМАНДЫ
 # ============================================
 
@@ -54,23 +83,10 @@ async def cmd_start(message: Message):
     db.add_user(user_id, message.from_user.username, message.from_user.first_name, message.from_user.last_name)
     db.check_premium_expired()
     
-    user = db.get_user(user_id)
-    if user and not user[4]:
-        can_show, ad_text = should_show_ad(user_id, "start", db)
-        if can_show:
-            await message.answer(ad_text)
-    
-    keyboard = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="❤️ Поддержать проект", callback_data="support"), 
-         InlineKeyboardButton(text="💼 Разработка", callback_data="development")],
-        [InlineKeyboardButton(text="⚙️ Настройки", callback_data="settings"), 
-         InlineKeyboardButton(text="❓ Помощь", callback_data="help")]
-    ])
-    
     await message.answer(
         "👋 Добро пожаловать в VideoDownloaderBot!\n\nЯ помогу вам скачать видео с YouTube и TikTok.\n\n📥 Просто отправьте мне ссылку на видео, и я скачаю его для вас.\n\nДоступные платформы:\n✅ YouTube\n✅ YouTube Shorts\n✅ TikTok",
         parse_mode="HTML",
-        reply_markup=keyboard
+        reply_markup=get_main_keyboard()
     )
 
 
@@ -85,8 +101,9 @@ async def cmd_admin(message: Message):
 @dp.message(Command("help"))
 async def cmd_help(message: Message):
     await message.answer(
-        "❓ Помощь\n\nКак использовать бота:\n\n1️⃣ Отправьте ссылку на видео с YouTube или TikTok\n2️⃣ Бот автоматически определит платформу\n3️⃣ Выберите качество для скачивания\n4️⃣ Получите видео или аудио\n\nДоступные команды:\n/start - Главное меню\n/support - Поддержать проект\n/help - Помощь\n\nПоддерживаемые платформы:\n✅ YouTube\n✅ YouTube Shorts\n✅ TikTok\n\nВопросы и предложения: @kz777LLL",
-        parse_mode="HTML"
+        "❓ Помощь\n\nКак использовать бота:\n\n1️⃣ Отправьте ссылку на видео с YouTube или TikTok\n2️⃣ Бот автоматически определит платформу\n3️⃣ Выберите качество для скачивания\n4️⃣ Получите видео или аудио\n\nДоступные команды:\n/start - Главное меню\n/help - Помощь\n\nПоддерживаемые платформы:\n✅ YouTube\n✅ YouTube Shorts\n✅ TikTok\n\nВопросы и предложения: @kz777LLL",
+        parse_mode="HTML",
+        reply_markup=get_back_keyboard()
     )
 
 
@@ -94,43 +111,77 @@ async def cmd_help(message: Message):
 # ГЛАВНОЕ МЕНЮ
 # ============================================
 
-async def show_main_menu(message: Message):
-    user_id = message.from_user.id
-    user = db.get_user(user_id)
+async def show_main_menu(callback: CallbackQuery = None, message: Message = None, edit: bool = True):
+    """Показать главное меню"""
+    text = "🏠 Главное меню\n\nВыберите действие:"
     
-    if user and not user[4]:
-        can_show, ad_text = should_show_ad(user_id, "menu", db)
-        if can_show:
-            await message.answer(ad_text)
-    
-    keyboard = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="❤️ Поддержать проект", callback_data="support"), 
-         InlineKeyboardButton(text="💼 Разработка", callback_data="development")],
-        [InlineKeyboardButton(text="⚙️ Настройки", callback_data="settings"), 
-         InlineKeyboardButton(text="❓ Помощь", callback_data="help")]
-    ])
-    await message.answer("🏠 Главное меню\n\nВыберите действие:", reply_markup=keyboard)
+    if callback:
+        if edit:
+            await callback.message.edit_text(text, reply_markup=get_main_keyboard())
+        else:
+            await callback.message.answer(text, reply_markup=get_main_keyboard())
+    elif message:
+        await message.answer(text, reply_markup=get_main_keyboard())
 
 
 # ============================================
 # КОНЕЦ ЧАСТИ 1
 # ============================================
+# main.py - ЧАСТЬ 2
 # ============================================
-# ЧАСТЬ 2: CALLBACK, ПОДДЕРЖКА, ПЛАТЕЖИ
+# CALLBACK НАВИГАЦИЯ, ПОДДЕРЖКА, ПЛАТЕЖИ, ОБРАБОТКА ССЫЛОК
 # ============================================
 
 @dp.callback_query(F.data == "back_to_menu")
 async def cb_back_to_menu(callback: CallbackQuery, state: FSMContext):
     await callback.answer()
     await state.clear()
-    await callback.message.delete()
-    await show_main_menu(callback.message)
+    await show_main_menu(callback, edit=True)
+
+
+@dp.callback_query(F.data == "download")
+async def cb_download(callback: CallbackQuery, state: FSMContext):
+    await callback.answer()
+    await state.set_state(DownloadStates.waiting_for_url)
+    
+    await callback.message.edit_text(
+        "📥 Отправьте ссылку на видео с YouTube или TikTok.\n\nЯ автоматически определю платформу и предложу доступные качества.",
+        reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="⬅️ Назад", callback_data="back_to_menu")]
+        ])
+    )
 
 
 @dp.callback_query(F.data == "support")
 async def cb_support(callback: CallbackQuery):
     await callback.answer()
-    await show_support_menu(callback.message)
+    
+    user_id = callback.from_user.id
+    user = db.get_user(user_id)
+    
+    if user and user[4]:
+        until = user[5].strftime("%d.%m.%Y %H:%M") if user[5] else ""
+        sub_type = user[6] or ""
+        
+        await callback.message.edit_text(
+            f"🌟 У вас активная подписка!\n\nСрок действия: {until}\nТип: {sub_type}\n\nСпасибо за поддержку проекта! ❤️",
+            reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+                [InlineKeyboardButton(text="⬅️ Назад", callback_data="back_to_menu")]
+            ])
+        )
+        return
+    
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="⭐ Оплатить Stars", callback_data="pay_stars")],
+        [InlineKeyboardButton(text="👨‍💻 Ручная оплата", callback_data="pay_manual")],
+        [InlineKeyboardButton(text="⬅️ Назад", callback_data="back_to_menu")]
+    ])
+    
+    await callback.message.edit_text(
+        "❤️ Поддержать проект\n\nСпасибо, что пользуетесь ботом!\n\nКаждая ваша поддержка помогает оплачивать сервер, развивать проект, повышать скорость работы и добавлять новые платформы.\n\nВ знак благодарности вы получите:\n\n🚫 Полное отключение рекламы\n⚡ Приоритетную обработку запросов\n📥 Одновременное скачивание нескольких файлов\n📃 Скачивание YouTube-плейлистов\n🆕 Ранний доступ ко всем новым функциям\n\nВыберите удобный срок поддержки ниже.\n\n💰 Цены:\n\n1 месяц - 2500 ₸ (215 ⭐)\n3 месяца - 6500 ₸ (560 ⭐)\n6 месяцев - 10000 ₸ (855 ⭐)\n12 месяцев - 17500 ₸ (1500 ⭐)\nНавсегда - 35000 ₸ (3000 ⭐)",
+        parse_mode="HTML",
+        reply_markup=keyboard
+    )
 
 
 @dp.callback_query(F.data == "development")
@@ -150,8 +201,7 @@ async def cb_settings(callback: CallbackQuery):
     await callback.answer()
     downloads = db.get_user_downloads_count(callback.from_user.id)
     await callback.message.edit_text(
-        f"⚙️ Настройки\n\nПока доступно:\n\n📊 Статистика ваших скачиваний: {downloads}\n\nДополнительные настройки будут добавлены позже.",
-        parse_mode="HTML",
+        f"⚙️ Настройки\n\n📊 Статистика ваших скачиваний: {downloads}\n\nДополнительные настройки будут добавлены позже.",
         reply_markup=InlineKeyboardMarkup(inline_keyboard=[
             [InlineKeyboardButton(text="⬅️ Назад", callback_data="back_to_menu")]
         ])
@@ -162,42 +212,11 @@ async def cb_settings(callback: CallbackQuery):
 async def cb_help(callback: CallbackQuery):
     await callback.answer()
     await callback.message.edit_text(
-        "❓ Помощь\n\nКак использовать бота:\n\n1️⃣ Отправьте ссылку на видео с YouTube или TikTok\n2️⃣ Бот автоматически определит платформу\n3️⃣ Выберите качество для скачивания\n4️⃣ Получите видео или аудио\n\nДоступные команды:\n/start - Главное меню\n/support - Поддержать проект\n/help - Помощь\n\nПоддерживаемые платформы:\n✅ YouTube\n✅ YouTube Shorts\n✅ TikTok\n\nВопросы и предложения: @kz777LLL",
+        "❓ Помощь\n\nКак использовать бота:\n\n1️⃣ Отправьте ссылку на видео с YouTube или TikTok\n2️⃣ Бот автоматически определит платформу\n3️⃣ Выберите качество для скачивания\n4️⃣ Получите видео или аудио\n\nДоступные команды:\n/start - Главное меню\n/help - Помощь\n\nПоддерживаемые платформы:\n✅ YouTube\n✅ YouTube Shorts\n✅ TikTok\n\nВопросы и предложения: @kz777LLL",
         parse_mode="HTML",
         reply_markup=InlineKeyboardMarkup(inline_keyboard=[
             [InlineKeyboardButton(text="⬅️ Назад", callback_data="back_to_menu")]
         ])
-    )
-
-
-# ============================================
-# ПОДДЕРЖКА ПРОЕКТА
-# ============================================
-
-async def show_support_menu(message: Message):
-    user_id = message.from_user.id
-    user = db.get_user(user_id)
-    
-    if user and user[4]:
-        await message.answer(
-            f"🌟 У вас активная подписка!\n\nСрок действия: {user[5].strftime('%d.%m.%Y %H:%M') if user[5] else ''}\nТип: {user[6] or ''}\n\nСпасибо за поддержку проекта! ❤️",
-            parse_mode="HTML",
-            reply_markup=InlineKeyboardMarkup(inline_keyboard=[
-                [InlineKeyboardButton(text="⬅️ Назад", callback_data="back_to_menu")]
-            ])
-        )
-        return
-    
-    keyboard = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="⭐ Оплатить Stars", callback_data="pay_stars")],
-        [InlineKeyboardButton(text="👨‍💻 Ручная оплата", callback_data="pay_manual")],
-        [InlineKeyboardButton(text="⬅️ Назад", callback_data="back_to_menu")]
-    ])
-    
-    await message.answer(
-        f"❤️ Поддержать проект\n\nСпасибо, что пользуетесь ботом!\n\nКаждая ваша поддержка помогает оплачивать сервер, развивать проект, повышать скорость работы и добавлять новые платформы.\n\nВ знак благодарности вы получите:\n\n🚫 Полное отключение рекламы\n⚡ Приоритетную обработку запросов\n📥 Одновременное скачивание нескольких файлов\n📃 Скачивание YouTube-плейлистов\n🆕 Ранний доступ ко всем новым функциям\n\nВыберите удобный срок поддержки ниже.\n\n💰 Цены:\n\n1 месяц - {config.PRICE_1_MONTH} ₸ ({config.STARS_1_MONTH} ⭐)\n3 месяца - {config.PRICE_3_MONTH} ₸ ({config.STARS_3_MONTH} ⭐)\n6 месяцев - {config.PRICE_6_MONTH} ₸ ({config.STARS_6_MONTH} ⭐)\n12 месяцев - {config.PRICE_12_MONTH} ₸ ({config.STARS_12_MONTH} ⭐)\nНавсегда - {config.PRICE_LIFETIME} ₸ ({config.STARS_LIFETIME} ⭐)",
-        parse_mode="HTML",
-        reply_markup=keyboard
     )
 
 
@@ -266,11 +285,7 @@ async def successful_payment_handler(message: Message):
 
 
 # ============================================
-# КОНЕЦ ЧАСТИ 2
-# ============================================
-
-# ============================================
-# ЧАСТЬ 3: ОБРАБОТКА ССЫЛОК, СКАЧИВАНИЕ, АДМИН, ЗАПУСК
+# ОБРАБОТКА ССЫЛОК
 # ============================================
 
 @dp.message(StateFilter(DownloadStates.waiting_for_url))
@@ -285,16 +300,16 @@ async def handle_url(message: Message, state: FSMContext):
     url = message.text.strip()
     
     if not url.startswith(('http://', 'https://')):
-        await message.answer("❌ Пожалуйста, отправьте корректную ссылку на видео с YouTube или TikTok.")
+        await message.answer("❌ Отправьте корректную ссылку")
         return
     
     platform = detect_platform(url)
     
     if platform == 'unknown':
-        await message.answer("❌ Эта платформа пока не поддерживается.\n\nСейчас доступны:\n✅ YouTube\n✅ YouTube Shorts\n✅ TikTok\n\nДругие платформы будут добавлены в следующих обновлениях.")
+        await message.answer("❌ Эта платформа пока не поддерживается.\n\nСейчас доступны:\n✅ YouTube\n✅ YouTube Shorts\n✅ TikTok")
         return
     
-    wait_msg = await message.answer("⏳ Обрабатываю вашу ссылку...\n\nПожалуйста, подождите.")
+    wait_msg = await message.answer("⏳ Обрабатываю ссылку...")
     
     try:
         if platform == 'youtube':
@@ -303,12 +318,12 @@ async def handle_url(message: Message, state: FSMContext):
             info = tiktok.get_video_info(url)
         else:
             await wait_msg.delete()
-            await message.answer("❌ Эта платформа пока не поддерживается.")
+            await message.answer("❌ Платформа не поддерживается")
             return
         
         if not info:
             await wait_msg.delete()
-            await message.answer("❌ Произошла ошибка при скачивании видео.\n\nПожалуйста, попробуйте позже или отправьте другую ссылку.")
+            await message.answer("❌ Ошибка получения информации")
             return
         
         await state.update_data({
@@ -321,24 +336,24 @@ async def handle_url(message: Message, state: FSMContext):
         views = info.get('view_count', 0)
         views_str = f"{views/1000000:.1f}M" if views > 1000000 else f"{views/1000:.1f}K" if views > 1000 else str(views)
         
-        info_text = f"📹 <b>{info.get('title', 'Без названия')[:100]}</b>\n\n👤 Автор: {info.get('uploader', 'Неизвестно')}\n⏱ Длительность: {duration_str}\n📊 Просмотров: {views_str}\n\nВыберите действие:"
-        
-        keyboard = InlineKeyboardMarkup(inline_keyboard=[
-            [InlineKeyboardButton(text="🎬 Доступные качества", callback_data="show_qualities")],
-            [InlineKeyboardButton(text="🎵 MP3", callback_data="download_mp3")],
-            [InlineKeyboardButton(text="🖼 Превью", callback_data="show_thumbnail")],
-            [InlineKeyboardButton(text="ℹ️ Информация", callback_data="show_info")],
-            [InlineKeyboardButton(text="⬅️ Назад", callback_data="back_to_menu")]
-        ])
+        info_text = f"📹 <b>{info.get('title', 'Без названия')[:100]}</b>\n\n👤 Автор: {info.get('uploader', 'Неизвестно')}\n⏱ Длительность: {duration_str}\n📊 Просмотров: {views_str}"
         
         await wait_msg.delete()
-        await message.answer(info_text, parse_mode="HTML", reply_markup=keyboard)
+        await message.answer(info_text, parse_mode="HTML", reply_markup=get_video_keyboard())
         
     except Exception as e:
         logger.error(f"Ошибка обработки ссылки: {e}")
         await wait_msg.delete()
-        await message.answer("❌ Произошла ошибка при скачивании видео.\n\nПожалуйста, попробуйте позже или отправьте другую ссылку.")
+        await message.answer("❌ Произошла ошибка")
 
+
+# ============================================
+# КОНЕЦ ЧАСТИ 2
+# ============================================
+# main.py - ЧАСТЬ 3
+# ============================================
+# КАЧЕСТВА, СКАЧИВАНИЕ, ИНФОРМАЦИЯ, АДМИН, ЗАПУСК
+# ============================================
 
 @dp.callback_query(F.data == "show_qualities")
 async def cb_show_qualities(callback: CallbackQuery, state: FSMContext):
@@ -348,12 +363,12 @@ async def cb_show_qualities(callback: CallbackQuery, state: FSMContext):
     info = data.get('info')
     
     if not info:
-        await callback.message.answer("❌ Произошла ошибка.")
+        await callback.message.answer("❌ Ошибка")
         return
     
     formats = info.get('formats', [])
     if not formats:
-        await callback.message.answer("❌ Не удалось найти доступные качества для этого видео.")
+        await callback.message.answer("❌ Нет доступных качеств")
         return
     
     keyboard_buttons = []
@@ -366,20 +381,27 @@ async def cb_show_qualities(callback: CallbackQuery, state: FSMContext):
         )])
     
     keyboard_buttons.append([InlineKeyboardButton(text="⬅️ Назад", callback_data="back_to_video")])
-    keyboard = InlineKeyboardMarkup(inline_keyboard=keyboard_buttons)
     
     await callback.message.edit_text(
-        "🎬 Доступные качества:\n\nВыберите качество для скачивания:",
-        reply_markup=keyboard
+        "🎬 Доступные качества:\n\nВыберите качество:",
+        reply_markup=InlineKeyboardMarkup(inline_keyboard=keyboard_buttons)
     )
 
 
 @dp.callback_query(F.data == "back_to_video")
 async def cb_back_to_video(callback: CallbackQuery, state: FSMContext):
     await callback.answer()
-    await state.clear()
-    await callback.message.delete()
-    await callback.message.answer("📥 Отправьте мне ссылку на видео с YouTube или TikTok.\n\nЯ автоматически определю платформу и предложу доступные качества.")
+    data = await state.get_data()
+    info = data.get('info')
+    if info:
+        duration_str = format_duration(info.get('duration', 0))
+        views = info.get('view_count', 0)
+        views_str = f"{views/1000000:.1f}M" if views > 1000000 else f"{views/1000:.1f}K" if views > 1000 else str(views)
+        info_text = f"📹 <b>{info.get('title', 'Без названия')[:100]}</b>\n\n👤 Автор: {info.get('uploader', 'Неизвестно')}\n⏱ Длительность: {duration_str}\n📊 Просмотров: {views_str}"
+        await callback.message.edit_text(info_text, parse_mode="HTML", reply_markup=get_video_keyboard())
+    else:
+        await state.clear()
+        await show_main_menu(callback, edit=True)
 
 
 @dp.callback_query(F.data.startswith("quality_"))
@@ -393,7 +415,7 @@ async def cb_download_quality(callback: CallbackQuery, state: FSMContext):
     info = data.get('info')
     
     if not url:
-        await callback.message.answer("❌ Произошла ошибка.")
+        await callback.message.answer("❌ Ошибка")
         return
     
     selected_format = None
@@ -406,7 +428,7 @@ async def cb_download_quality(callback: CallbackQuery, state: FSMContext):
     size_text = format_size(selected_format.get('filesize', 0)) if selected_format else 'Unknown'
     
     await callback.message.edit_text(
-        f"⬇️ Начинаю скачивание...\n\nКачество: {quality_text}\nРазмер: {size_text}\n\nПожалуйста, подождите."
+        f"⬇️ Скачиваю...\n\nКачество: {quality_text}\nРазмер: {size_text}"
     )
     
     try:
@@ -415,11 +437,11 @@ async def cb_download_quality(callback: CallbackQuery, state: FSMContext):
         elif platform == 'tiktok':
             filepath = tiktok.download_video(url, format_id)
         else:
-            await callback.message.answer("❌ Произошла ошибка.")
+            await callback.message.answer("❌ Ошибка")
             return
         
         if not filepath:
-            await callback.message.answer("❌ Произошла ошибка при скачивании видео.\n\nПожалуйста, попробуйте позже или отправьте другую ссылку.")
+            await callback.message.answer("❌ Ошибка скачивания")
             return
         
         file_size = os.path.getsize(filepath)
@@ -433,21 +455,14 @@ async def cb_download_quality(callback: CallbackQuery, state: FSMContext):
             caption=f"✅ Видео готово!\n\n📹 {title}\n🎬 {quality_text}\n📦 {format_size(file_size)}"
         )
         
-        user_id = callback.from_user.id
-        user = db.get_user(user_id)
-        if user and not user[4]:
-            can_show, ad_text = should_show_ad(user_id, "after_download", db)
-            if can_show:
-                await callback.message.answer(ad_text)
-        
-        db.add_download(user_id, platform, 'video', quality_text, file_size)
+        db.add_download(callback.from_user.id, platform, 'video', quality_text, file_size)
         
         if config.DELETE_AFTER_SEND:
             delete_file(filepath)
         
     except Exception as e:
         logger.error(f"Ошибка скачивания: {e}")
-        await callback.message.answer("❌ Произошла ошибка при скачивании видео.\n\nПожалуйста, попробуйте позже или отправьте другую ссылку.")
+        await callback.message.answer("❌ Ошибка скачивания")
 
 
 @dp.callback_query(F.data == "download_mp3")
@@ -460,10 +475,10 @@ async def cb_download_mp3(callback: CallbackQuery, state: FSMContext):
     info = data.get('info')
     
     if not url:
-        await callback.message.answer("❌ Произошла ошибка.")
+        await callback.message.answer("❌ Ошибка")
         return
     
-    await callback.message.edit_text("🎵 Скачиваю аудио...\n\nПожалуйста, подождите.")
+    await callback.message.edit_text("🎵 Скачиваю аудио...")
     
     try:
         if platform == 'youtube':
@@ -471,11 +486,11 @@ async def cb_download_mp3(callback: CallbackQuery, state: FSMContext):
         elif platform == 'tiktok':
             filepath = tiktok.download_audio(url)
         else:
-            await callback.message.answer("❌ Произошла ошибка.")
+            await callback.message.answer("❌ Ошибка")
             return
         
         if not filepath:
-            await callback.message.answer("❌ Произошла ошибка при скачивании аудио.\n\nПожалуйста, попробуйте позже или отправьте другую ссылку.")
+            await callback.message.answer("❌ Ошибка скачивания")
             return
         
         file_size = os.path.getsize(filepath)
@@ -492,21 +507,14 @@ async def cb_download_mp3(callback: CallbackQuery, state: FSMContext):
         
         await callback.message.answer(f"✅ Аудио готово!\n\n🎵 {title}\n📦 {format_size(file_size)}")
         
-        user_id = callback.from_user.id
-        user = db.get_user(user_id)
-        if user and not user[4]:
-            can_show, ad_text = should_show_ad(user_id, "after_download", db)
-            if can_show:
-                await callback.message.answer(ad_text)
-        
-        db.add_download(user_id, platform, 'audio', 'MP3', file_size)
+        db.add_download(callback.from_user.id, platform, 'audio', 'MP3', file_size)
         
         if config.DELETE_AFTER_SEND:
             delete_file(filepath)
         
     except Exception as e:
         logger.error(f"Ошибка скачивания MP3: {e}")
-        await callback.message.answer("❌ Произошла ошибка при скачивании аудио.\n\nПожалуйста, попробуйте позже или отправьте другую ссылку.")
+        await callback.message.answer("❌ Ошибка скачивания")
 
 
 @dp.callback_query(F.data == "show_thumbnail")
@@ -519,7 +527,7 @@ async def cb_show_thumbnail(callback: CallbackQuery, state: FSMContext):
     info = data.get('info')
     
     if not url:
-        await callback.message.answer("❌ Произошла ошибка.")
+        await callback.message.answer("❌ Ошибка")
         return
     
     await callback.message.edit_text("🖼 Загружаю превью...")
@@ -530,7 +538,7 @@ async def cb_show_thumbnail(callback: CallbackQuery, state: FSMContext):
         elif platform == 'tiktok':
             filepath = tiktok.download_thumbnail(url)
         else:
-            await callback.message.answer("❌ Произошла ошибка.")
+            await callback.message.answer("❌ Ошибка")
             return
         
         if not filepath:
@@ -544,7 +552,7 @@ async def cb_show_thumbnail(callback: CallbackQuery, state: FSMContext):
         
         await callback.message.answer_photo(
             photo=photo_file,
-            caption=f"🖼 Превью видео:\n\n{title}"
+            caption=f"🖼 Превью\n\n{title}"
         )
         
         if config.DELETE_AFTER_SEND:
@@ -595,20 +603,30 @@ async def process_admin_user_id(message: Message, state: FSMContext):
     await admin.process_user_id(message, state)
 
 
+@dp.message(StateFilter(AdminStates.waiting_for_subscription_days))
+async def process_admin_subscription_days(message: Message, state: FSMContext):
+    pass
+
+
 @dp.message(StateFilter(AdminStates.waiting_for_broadcast))
 async def process_admin_broadcast(message: Message, state: FSMContext):
     await admin.process_broadcast(message, state)
+
+
+@dp.message(StateFilter(AdminStates.waiting_for_user_info))
+async def process_admin_user_info(message: Message, state: FSMContext):
+    await admin.process_user_info(message, state)
 
 
 @dp.callback_query(F.data == "admin_panel")
 async def callback_admin_panel(callback: CallbackQuery, state: FSMContext):
     await callback.answer()
     await state.clear()
-    await admin.show_admin_panel(callback.message)
+    await admin.show_admin_panel(callback.message, edit=True)
 
 
 # ============================================
-# ЗАПУСК БОТА
+# ЗАПУСК
 # ============================================
 
 async def main():
