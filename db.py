@@ -3,7 +3,7 @@
 # ========================================
 
 import sqlite3
-import asyncio
+from datetime import datetime, timedelta
 
 DB_NAME = "users.db"
 
@@ -15,6 +15,7 @@ def init_db():
             user_id INTEGER PRIMARY KEY,
             username TEXT,
             premium INTEGER DEFAULT 0,
+            premium_until TEXT,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     """)
@@ -31,12 +32,13 @@ def add_user(user_id, username):
     conn.commit()
     conn.close()
 
-def set_premium(user_id):
+def set_premium(user_id, days=30):
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
+    until = (datetime.now() + timedelta(days=days)).isoformat()
     cursor.execute(
-        "UPDATE users SET premium = 1 WHERE user_id = ?",
-        (user_id,)
+        "UPDATE users SET premium = 1, premium_until = ? WHERE user_id = ?",
+        (until, user_id)
     )
     conn.commit()
     conn.close()
@@ -45,9 +47,29 @@ def is_premium(user_id):
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
     cursor.execute(
-        "SELECT premium FROM users WHERE user_id = ?",
+        "SELECT premium, premium_until FROM users WHERE user_id = ?",
         (user_id,)
     )
     result = cursor.fetchone()
     conn.close()
-    return result is not None and result[0] == 1
+    
+    if result is None or result[0] == 0:
+        return False
+    
+    if result[1]:
+        until = datetime.fromisoformat(result[1])
+        if until < datetime.now():
+            return False
+    
+    return True
+
+def get_user(user_id):
+    conn = sqlite3.connect(DB_NAME)
+    cursor = conn.cursor()
+    cursor.execute(
+        "SELECT * FROM users WHERE user_id = ?",
+        (user_id,)
+    )
+    result = cursor.fetchone()
+    conn.close()
+    return result
