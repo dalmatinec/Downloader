@@ -211,6 +211,7 @@ CREATE TABLE buttons (
     action_type_id TEXT NOT NULL,
     action_data TEXT DEFAULT '{}',
     order_num INTEGER DEFAULT 0,
+    row_num INTEGER DEFAULT 0,
     is_active INTEGER DEFAULT 1,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
