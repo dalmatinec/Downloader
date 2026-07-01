@@ -53,13 +53,16 @@ class Handlers:
         @self.dp.message_handler(Command('admin'))
         async def cmd_admin(message: types.Message, state: FSMContext):
             user_id = message.from_user.id
-            chat_id = str(message.chat.id)
+            telegram_chat_id = str(message.chat.id)
             
-            if not self._is_admin(chat_id, user_id):
+            if not self._is_admin(telegram_chat_id, user_id):
                 return
             
+            # Получаем или создаем community_id
+            community_id = self.admin.get_or_create_community(telegram_chat_id, message.chat.title)
+            
             await state.set_state(AdminStates.MAIN)
-            await self._show_admin_main_menu(message, chat_id, user_id)
+            await self._show_admin_main_menu(message, community_id, user_id)
 
         # ============================================
         # КНОПКА "ОТКРЫТЬ ПАНЕЛЬ"
@@ -68,13 +71,15 @@ class Handlers:
         @self.dp.message_handler(Text(equals="🔑 Открыть панель"))
         async def open_admin_panel(message: types.Message, state: FSMContext):
             user_id = message.from_user.id
-            chat_id = str(message.chat.id)
+            telegram_chat_id = str(message.chat.id)
             
-            if not self._is_admin(chat_id, user_id):
+            if not self._is_admin(telegram_chat_id, user_id):
                 return
             
+            community_id = self.admin.get_or_create_community(telegram_chat_id, message.chat.title)
+            
             await state.set_state(AdminStates.MAIN)
-            await self._show_admin_main_menu(message, chat_id, user_id)
+            await self._show_admin_main_menu(message, community_id, user_id)
 
         # ============================================
         # ГЛАВНОЕ МЕНЮ АДМИНА
@@ -83,11 +88,13 @@ class Handlers:
         @self.dp.message_handler(state=AdminStates.MAIN)
         async def admin_main_menu_handler(message: types.Message, state: FSMContext):
             user_id = message.from_user.id
-            chat_id = str(message.chat.id)
+            telegram_chat_id = str(message.chat.id)
             text = message.text
             
-            if not self._is_admin(chat_id, user_id):
+            if not self._is_admin(telegram_chat_id, user_id):
                 return
+            
+            community_id = self.admin.get_or_create_community(telegram_chat_id, message.chat.title)
             
             # Выход
             if text == "🚪 Выход":
@@ -97,8 +104,8 @@ class Handlers:
                 await message.answer("Панель администратора", reply_markup=keyboard)
                 return
             
-            # Получаем меню из БД (community_id = chat_id, т.к. 1 сервер = 1 чат)
-            main_menu = self.admin.menu.get_main_menu(chat_id)
+            # Получаем меню из БД
+            main_menu = self.admin.menu.get_main_menu(community_id)
             if not main_menu:
                 return
             
@@ -110,44 +117,45 @@ class Handlers:
                     action_type = btn.get('action_type_id')
                     
                     if action_type == 'open_menu':
-                        await self._show_submenu(message, state, chat_id, user_id, action_data.get('menu_id'))
+                        await self._show_submenu(message, state, community_id, user_id, action_data.get('menu_id'))
                     elif action_type == 'open_content':
                         content_id = action_data.get('content_id')
-                        await self._show_content(message, state, chat_id, content_id)
+                        await self._show_content(message, state, community_id, content_id)
                     elif action_type == 'open_link':
                         await message.answer(action_data.get('url', '#'))
                     elif action_type == 'command':
                         command = action_data.get('command')
                         if command == 'content':
-                            await self._show_content_list(message, state, chat_id)
+                            await self._show_content_list(message, state, community_id)
                         elif command == 'menu':
-                            await self._show_menu_list(message, state, chat_id)
+                            await self._show_menu_list(message, state, community_id)
                         elif command == 'users':
-                            await self._show_users_list(message, state, chat_id)
+                            await self._show_users_list(message, state, community_id)
                         elif command == 'moderation':
-                            await self._show_moderation_menu(message, state, chat_id)
+                            await self._show_moderation_menu(message, state, community_id)
                         elif command == 'roles':
-                            await self._show_roles_list(message, state, chat_id)
+                            await self._show_roles_list(message, state, community_id)
                         elif command == 'stats':
-                            await self._show_stats(message, state, chat_id)
+                            await self._show_stats(message, state, community_id)
                         elif command == 'logs':
-                            await self._show_logs(message, state, chat_id)
+                            await self._show_logs(message, state, community_id)
                         elif command == 'settings':
-                            await self._show_settings_menu(message, state, chat_id)
+                            await self._show_settings_menu(message, state, community_id)
                         elif command == 'info':
-                            await self._show_community_info(message, state, chat_id)
+                            await self._show_community_info(message, state, community_id)
                     elif action_type == 'back':
-                        await self._show_admin_main_menu(message, chat_id, user_id)
+                        await self._show_admin_main_menu(message, community_id, user_id)
                     return
+
 # handlers.py - ЧАСТЬ 2 (Вспомогательные методы и списки)
 
     # ============================================
     # ВСПОМОГАТЕЛЬНЫЕ МЕТОДЫ
     # ============================================
 
-    async def _show_admin_main_menu(self, message: types.Message, chat_id: str, user_id: int):
+    async def _show_admin_main_menu(self, message: types.Message, community_id: str, user_id: int):
         """Показать главное меню админа из БД"""
-        main_menu = self.admin.menu.get_main_menu(chat_id)
+        main_menu = self.admin.menu.get_main_menu(community_id)
         if not main_menu:
             return
         
@@ -158,7 +166,7 @@ class Handlers:
         keyboard = KeyboardBuilder.build_reply(buttons)
         await message.answer("Панель администратора", reply_markup=keyboard)
 
-    async def _show_submenu(self, message: types.Message, state: FSMContext, chat_id: str, user_id: int, menu_id: str):
+    async def _show_submenu(self, message: types.Message, state: FSMContext, community_id: str, user_id: int, menu_id: str):
         """Показать подменю"""
         buttons = self.admin.menu.get_menu_buttons(menu_id)
         if not buttons:
@@ -172,9 +180,9 @@ class Handlers:
     # ПОКАЗ РАЗДЕЛОВ АДМИНКИ
     # ============================================
 
-    async def _show_content_list(self, message: types.Message, state: FSMContext, chat_id: str, page: int = 0):
+    async def _show_content_list(self, message: types.Message, state: FSMContext, community_id: str, page: int = 0):
         """Показать список контента"""
-        contents, total = self.admin.content.get_paginated(chat_id, active_only=False, limit=10, offset=page*10)
+        contents, total = self.admin.content.get_paginated(community_id, active_only=False, limit=10, offset=page*10)
         
         if not contents and page == 0:
             await message.answer("Контент отсутствует")
@@ -201,9 +209,9 @@ class Handlers:
         await state.set_state(AdminStates.CONTENT_LIST)
         await message.answer(text, reply_markup=keyboard)
 
-    async def _show_menu_list(self, message: types.Message, state: FSMContext, chat_id: str):
+    async def _show_menu_list(self, message: types.Message, state: FSMContext, community_id: str):
         """Показать список меню"""
-        menus = self.admin.menu.get_menus(chat_id, active_only=False)
+        menus = self.admin.menu.get_menus(community_id, active_only=False)
         
         if not menus:
             await message.answer("Меню отсутствуют")
@@ -224,8 +232,13 @@ class Handlers:
         await state.set_state(AdminStates.MENU_LIST)
         await message.answer(text, reply_markup=keyboard)
 
-    async def _show_users_list(self, message: types.Message, state: FSMContext, chat_id: str, page: int = 0):
+    async def _show_users_list(self, message: types.Message, state: FSMContext, community_id: str, page: int = 0):
         """Показать список пользователей"""
+        chat_id = self.admin.get_chat_id_by_community(community_id)
+        if not chat_id:
+            await message.answer("Чат не найден")
+            return
+        
         members, total = self.admin.users.get_chat_members_paginated(chat_id, active_only=False, limit=10, offset=page*10)
         
         if not members and page == 0:
@@ -255,7 +268,7 @@ class Handlers:
         await state.set_state(AdminStates.USERS_LIST)
         await message.answer(text, reply_markup=keyboard)
 
-    async def _show_moderation_menu(self, message: types.Message, state: FSMContext, chat_id: str):
+    async def _show_moderation_menu(self, message: types.Message, state: FSMContext, community_id: str):
         """Показать меню модерации"""
         buttons = [
             {"text": "📋 Наказания", "callback_data": "moderation_list"},
@@ -266,7 +279,7 @@ class Handlers:
         await state.set_state(AdminStates.MODERATION_LIST)
         await message.answer("🔨 Модерация", reply_markup=keyboard)
 
-    async def _show_roles_list(self, message: types.Message, state: FSMContext, chat_id: str):
+    async def _show_roles_list(self, message: types.Message, state: FSMContext, community_id: str):
         """Показать список ролей"""
         roles = self.admin.moderation.get_all_roles()
         
@@ -289,10 +302,15 @@ class Handlers:
         await state.set_state(AdminStates.ROLE_LIST)
         await message.answer(text, reply_markup=keyboard)
 
-    async def _show_stats(self, message: types.Message, state: FSMContext, chat_id: str):
+    async def _show_stats(self, message: types.Message, state: FSMContext, community_id: str):
         """Показать статистику"""
+        chat_id = self.admin.get_chat_id_by_community(community_id)
+        if not chat_id:
+            await message.answer("Чат не найден")
+            return
+        
         members_count = self.admin.users.get_chat_members_count(chat_id)
-        content_count = len(self.admin.content.get_all(chat_id))
+        content_count = len(self.admin.content.get_all(community_id))
         punishments_active = self.admin.moderation.count_active_punishments()
         
         text = f"📊 Статистика:\n\n"
@@ -309,8 +327,13 @@ class Handlers:
         await state.set_state(AdminStates.STATS_MAIN)
         await message.answer(text, reply_markup=keyboard)
 
-    async def _show_logs(self, message: types.Message, state: FSMContext, chat_id: str, page: int = 0):
+    async def _show_logs(self, message: types.Message, state: FSMContext, community_id: str, page: int = 0):
         """Показать логи"""
+        chat_id = self.admin.get_chat_id_by_community(community_id)
+        if not chat_id:
+            await message.answer("Чат не найден")
+            return
+        
         logs, total = self.admin.get_logs_paginated(chat_id, limit=50, offset=page*50)
         
         if not logs:
@@ -340,9 +363,9 @@ class Handlers:
         await state.set_state(AdminStates.LOGS_MAIN)
         await message.answer(text, reply_markup=keyboard)
 
-    async def _show_settings_menu(self, message: types.Message, state: FSMContext, chat_id: str):
+    async def _show_settings_menu(self, message: types.Message, state: FSMContext, community_id: str):
         """Показать меню настроек"""
-        categories = self.admin.settings.get_categories(chat_id)
+        categories = self.admin.settings.get_categories(community_id)
         
         if not categories:
             await message.answer("Настройки отсутствуют")
@@ -350,7 +373,7 @@ class Handlers:
         
         text = "⚙️ Настройки:\n\n"
         for cat in categories:
-            settings = self.admin.settings.get_by_category(chat_id, cat)
+            settings = self.admin.settings.get_by_category(community_id, cat)
             text += f"📂 {cat} ({len(settings)})\n"
         
         buttons = []
@@ -364,9 +387,9 @@ class Handlers:
         await state.set_state(AdminStates.SETTINGS_CATEGORY)
         await message.answer(text, reply_markup=keyboard)
 
-    async def _show_community_info(self, message: types.Message, state: FSMContext, chat_id: str):
+    async def _show_community_info(self, message: types.Message, state: FSMContext, community_id: str):
         """Показать информацию о сообществе"""
-        text = self.admin.get_community_info(chat_id)
+        text = self.admin.get_community_info(community_id)
         
         buttons = [
             {"text": "✏️ Редактировать", "callback_data": "community_edit"},
@@ -374,25 +397,28 @@ class Handlers:
         ]
         keyboard = KeyboardBuilder.build_inline(buttons)
         await message.answer(text, reply_markup=keyboard)
+
 # handlers.py - ЧАСТЬ 3 (Callback-запросы)
         # ============================================
-        # CALLBACK-ЗАПРОСЫ (без жесткой привязки к state)
+        # CALLBACK-ЗАПРОСЫ
         # ============================================
 
         @self.dp.callback_query_handler(lambda c: c.data == 'back_to_main', state="*")
         async def back_to_main_callback(callback: types.CallbackQuery, state: FSMContext):
             await callback.answer()
-            chat_id = str(callback.message.chat.id)
+            telegram_chat_id = str(callback.message.chat.id)
+            community_id = self.admin.get_or_create_community(telegram_chat_id, callback.message.chat.title)
             user_id = callback.from_user.id
             await state.set_state(AdminStates.MAIN)
-            await self._show_admin_main_menu(callback.message, chat_id, user_id)
+            await self._show_admin_main_menu(callback.message, community_id, user_id)
 
         @self.dp.callback_query_handler(lambda c: c.data.startswith('content_page_'), state="*")
         async def content_page_callback(callback: types.CallbackQuery, state: FSMContext):
             await callback.answer()
             page = int(callback.data.split('_')[2])
-            chat_id = str(callback.message.chat.id)
-            await self._show_content_list(callback.message, state, chat_id, page)
+            telegram_chat_id = str(callback.message.chat.id)
+            community_id = self.admin.get_or_create_community(telegram_chat_id, callback.message.chat.title)
+            await self._show_content_list(callback.message, state, community_id, page)
 
         @self.dp.callback_query_handler(lambda c: c.data == 'content_create', state="*")
         async def content_create_callback(callback: types.CallbackQuery, state: FSMContext):
@@ -409,8 +435,9 @@ class Handlers:
         @self.dp.callback_query_handler(lambda c: c.data == 'back_to_content', state="*")
         async def back_to_content_callback(callback: types.CallbackQuery, state: FSMContext):
             await callback.answer()
-            chat_id = str(callback.message.chat.id)
-            await self._show_content_list(callback.message, state, chat_id)
+            telegram_chat_id = str(callback.message.chat.id)
+            community_id = self.admin.get_or_create_community(telegram_chat_id, callback.message.chat.title)
+            await self._show_content_list(callback.message, state, community_id)
 
         @self.dp.callback_query_handler(lambda c: c.data.startswith('content_type_'), state=AdminStates.CONTENT_CREATE_TYPE)
         async def content_type_callback(callback: types.CallbackQuery, state: FSMContext):
@@ -461,10 +488,11 @@ class Handlers:
             await state.update_data(content_tags=tags)
             
             data = await state.get_data()
-            chat_id = str(message.chat.id)
+            telegram_chat_id = str(message.chat.id)
+            community_id = self.admin.get_or_create_community(telegram_chat_id, message.chat.title)
             
             content_id = self.admin.content.create({
-                'community_id': chat_id,
+                'community_id': community_id,
                 'title': data.get('content_title'),
                 'description': data.get('content_description'),
                 'content_type_id': data.get('content_type_id'),
@@ -475,7 +503,7 @@ class Handlers:
             
             await message.answer("✅ Контент создан")
             await state.set_state(AdminStates.MAIN)
-            await self._show_admin_main_menu(message, chat_id, message.from_user.id)
+            await self._show_admin_main_menu(message, community_id, message.from_user.id)
 
         @self.dp.callback_query_handler(lambda c: c.data == 'menu_create', state="*")
         async def menu_create_callback(callback: types.CallbackQuery, state: FSMContext):
@@ -485,15 +513,17 @@ class Handlers:
 
         @self.dp.message_handler(state=AdminStates.MENU_CREATE_NAME)
         async def menu_create_name(message: types.Message, state: FSMContext):
-            chat_id = str(message.chat.id)
+            telegram_chat_id = str(message.chat.id)
+            community_id = self.admin.get_or_create_community(telegram_chat_id, message.chat.title)
+            
             menu_id = self.admin.menu.create_menu({
-                'community_id': chat_id,
+                'community_id': community_id,
                 'name': message.text.strip(),
                 'is_main': 0
             })
             await message.answer("✅ Меню создано")
             await state.set_state(AdminStates.MAIN)
-            await self._show_admin_main_menu(message, chat_id, message.from_user.id)
+            await self._show_admin_main_menu(message, community_id, message.from_user.id)
 
         @self.dp.callback_query_handler(lambda c: c.data == 'role_create', state="*")
         async def role_create_callback(callback: types.CallbackQuery, state: FSMContext):
@@ -510,8 +540,9 @@ class Handlers:
             })
             await message.answer("✅ Роль создана")
             await state.set_state(AdminStates.MAIN)
-            chat_id = str(message.chat.id)
-            await self._show_admin_main_menu(message, chat_id, message.from_user.id)
+            telegram_chat_id = str(message.chat.id)
+            community_id = self.admin.get_or_create_community(telegram_chat_id, message.chat.title)
+            await self._show_admin_main_menu(message, community_id, message.from_user.id)
 
         @self.dp.callback_query_handler(lambda c: c.data == 'permission_list', state="*")
         async def permission_list_callback(callback: types.CallbackQuery, state: FSMContext):
@@ -530,8 +561,9 @@ class Handlers:
         @self.dp.callback_query_handler(lambda c: c.data == 'back_to_roles', state="*")
         async def back_to_roles_callback(callback: types.CallbackQuery, state: FSMContext):
             await callback.answer()
-            chat_id = str(callback.message.chat.id)
-            await self._show_roles_list(callback.message, state, chat_id)
+            telegram_chat_id = str(callback.message.chat.id)
+            community_id = self.admin.get_or_create_community(telegram_chat_id, callback.message.chat.title)
+            await self._show_roles_list(callback.message, state, community_id)
 
         @self.dp.callback_query_handler(lambda c: c.data == 'permission_create', state="*")
         async def permission_create_callback(callback: types.CallbackQuery, state: FSMContext):
@@ -547,8 +579,9 @@ class Handlers:
             })
             await message.answer("✅ Право создано")
             await state.set_state(AdminStates.MAIN)
-            chat_id = str(message.chat.id)
-            await self._show_admin_main_menu(message, chat_id, message.from_user.id)
+            telegram_chat_id = str(message.chat.id)
+            community_id = self.admin.get_or_create_community(telegram_chat_id, message.chat.title)
+            await self._show_admin_main_menu(message, community_id, message.from_user.id)
 
         @self.dp.callback_query_handler(lambda c: c.data == 'community_edit', state="*")
         async def community_edit_callback(callback: types.CallbackQuery, state: FSMContext):
@@ -590,37 +623,41 @@ class Handlers:
 # handlers.py - ЧАСТЬ 4 (Модерация, настройки, логи)
         @self.dp.message_handler(state=AdminStates.SETTINGS_EDIT_NAME)
         async def settings_edit_name(message: types.Message, state: FSMContext):
-            chat_id = str(message.chat.id)
-            self.admin.update_community_name(chat_id, message.text.strip())
+            telegram_chat_id = str(message.chat.id)
+            community_id = self.admin.get_or_create_community(telegram_chat_id, message.chat.title)
+            self.admin.update_community_name(community_id, message.text.strip())
             await message.answer("✅ Обновлено")
             await state.set_state(AdminStates.MAIN)
-            await self._show_admin_main_menu(message, chat_id, message.from_user.id)
+            await self._show_admin_main_menu(message, community_id, message.from_user.id)
 
         @self.dp.message_handler(state=AdminStates.SETTINGS_EDIT_DESCRIPTION)
         async def settings_edit_description(message: types.Message, state: FSMContext):
-            chat_id = str(message.chat.id)
-            self.admin.update_community_description(chat_id, message.text.strip())
+            telegram_chat_id = str(message.chat.id)
+            community_id = self.admin.get_or_create_community(telegram_chat_id, message.chat.title)
+            self.admin.update_community_description(community_id, message.text.strip())
             await message.answer("✅ Обновлено")
             await state.set_state(AdminStates.MAIN)
-            await self._show_admin_main_menu(message, chat_id, message.from_user.id)
+            await self._show_admin_main_menu(message, community_id, message.from_user.id)
 
         @self.dp.message_handler(state=AdminStates.SETTINGS_EDIT_AVATAR, content_types=['photo'])
         async def settings_edit_avatar(message: types.Message, state: FSMContext):
-            chat_id = str(message.chat.id)
+            telegram_chat_id = str(message.chat.id)
+            community_id = self.admin.get_or_create_community(telegram_chat_id, message.chat.title)
             photo_id = message.photo[-1].file_id
-            self.admin.update_community_avatar(chat_id, photo_id)
+            self.admin.update_community_avatar(community_id, photo_id)
             await message.answer("✅ Обновлено")
             await state.set_state(AdminStates.MAIN)
-            await self._show_admin_main_menu(message, chat_id, message.from_user.id)
+            await self._show_admin_main_menu(message, community_id, message.from_user.id)
 
         @self.dp.message_handler(state=AdminStates.SETTINGS_EDIT_LOGO, content_types=['photo'])
         async def settings_edit_logo(message: types.Message, state: FSMContext):
-            chat_id = str(message.chat.id)
+            telegram_chat_id = str(message.chat.id)
+            community_id = self.admin.get_or_create_community(telegram_chat_id, message.chat.title)
             photo_id = message.photo[-1].file_id
-            self.admin.update_community_logo(chat_id, photo_id)
+            self.admin.update_community_logo(community_id, photo_id)
             await message.answer("✅ Обновлено")
             await state.set_state(AdminStates.MAIN)
-            await self._show_admin_main_menu(message, chat_id, message.from_user.id)
+            await self._show_admin_main_menu(message, community_id, message.from_user.id)
 
         @self.dp.callback_query_handler(lambda c: c.data == 'users_search', state="*")
         async def users_search_callback(callback: types.CallbackQuery, state: FSMContext):
@@ -688,7 +725,13 @@ class Handlers:
                 user_id = data.get('moderation_user_id')
                 action = data.get('moderation_action')
                 reason = data.get('moderation_reason')
-                chat_id = str(message.chat.id)
+                telegram_chat_id = str(message.chat.id)
+                community_id = self.admin.get_or_create_community(telegram_chat_id, message.chat.title)
+                chat_id = self.admin.get_chat_id_by_community(community_id)
+                
+                if not chat_id:
+                    await message.answer("Чат не найден")
+                    return
                 
                 member = self.admin.users.get_chat_member(chat_id, user_id)
                 if not member or 'id' not in member:
@@ -724,20 +767,20 @@ class Handlers:
                 
                 await message.answer("✅ Наказание выдано")
                 await state.set_state(AdminStates.MAIN)
-                await self._show_admin_main_menu(message, chat_id, message.from_user.id)
+                await self._show_admin_main_menu(message, community_id, message.from_user.id)
             except ValueError:
                 await message.answer("Введите корректное число:")
 
         @self.dp.callback_query_handler(lambda c: c.data == 'back_to_moderation', state="*")
         async def back_to_moderation_callback(callback: types.CallbackQuery, state: FSMContext):
             await callback.answer()
-            chat_id = str(callback.message.chat.id)
-            await self._show_moderation_menu(callback.message, state, chat_id)
+            telegram_chat_id = str(callback.message.chat.id)
+            community_id = self.admin.get_or_create_community(telegram_chat_id, callback.message.chat.title)
+            await self._show_moderation_menu(callback.message, state, community_id)
 
         @self.dp.callback_query_handler(lambda c: c.data == 'moderation_list', state="*")
         async def moderation_list_callback(callback: types.CallbackQuery, state: FSMContext):
             await callback.answer()
-            chat_id = str(callback.message.chat.id)
             punishments = self.admin.moderation.get_all_punishments(active_only=False, limit=50)
             if not punishments:
                 await callback.message.edit_text("Наказаний нет")
@@ -755,9 +798,10 @@ class Handlers:
         @self.dp.callback_query_handler(lambda c: c.data.startswith('settings_category_'), state="*")
         async def settings_category_callback(callback: types.CallbackQuery, state: FSMContext):
             await callback.answer()
-            chat_id = str(callback.message.chat.id)
+            telegram_chat_id = str(callback.message.chat.id)
+            community_id = self.admin.get_or_create_community(telegram_chat_id, callback.message.chat.title)
             category = callback.data.split('_')[2]
-            settings = self.admin.settings.get_by_category(chat_id, category)
+            settings = self.admin.settings.get_by_category(community_id, category)
             text = f"⚙️ {category}:\n\n"
             for s in settings:
                 text += f"{s.get('key')} = {s.get('value')}\n"
@@ -768,8 +812,9 @@ class Handlers:
         @self.dp.callback_query_handler(lambda c: c.data == 'back_to_settings', state="*")
         async def back_to_settings_callback(callback: types.CallbackQuery, state: FSMContext):
             await callback.answer()
-            chat_id = str(callback.message.chat.id)
-            await self._show_settings_menu(callback.message, state, chat_id)
+            telegram_chat_id = str(callback.message.chat.id)
+            community_id = self.admin.get_or_create_community(telegram_chat_id, callback.message.chat.title)
+            await self._show_settings_menu(callback.message, state, community_id)
 
         @self.dp.callback_query_handler(lambda c: c.data == 'settings_add', state="*")
         async def settings_add_callback(callback: types.CallbackQuery, state: FSMContext):
@@ -804,10 +849,11 @@ class Handlers:
                 return
             
             data = await state.get_data()
-            chat_id = str(message.chat.id)
+            telegram_chat_id = str(message.chat.id)
+            community_id = self.admin.get_or_create_community(telegram_chat_id, message.chat.title)
             
             self.admin.settings.create({
-                'community_id': chat_id,
+                'community_id': community_id,
                 'category': data.get('setting_category'),
                 'key': data.get('setting_key'),
                 'value': data.get('setting_value'),
@@ -816,13 +862,14 @@ class Handlers:
             
             await message.answer("✅ Настройка создана")
             await state.set_state(AdminStates.MAIN)
-            await self._show_admin_main_menu(message, chat_id, message.from_user.id)
+            await self._show_admin_main_menu(message, community_id, message.from_user.id)
 
         @self.dp.callback_query_handler(lambda c: c.data == 'stats_content', state="*")
         async def stats_content_callback(callback: types.CallbackQuery, state: FSMContext):
             await callback.answer()
-            chat_id = str(callback.message.chat.id)
-            contents = self.admin.content.get_all(chat_id, active_only=True, limit=20)
+            telegram_chat_id = str(callback.message.chat.id)
+            community_id = self.admin.get_or_create_community(telegram_chat_id, callback.message.chat.title)
+            contents = self.admin.content.get_all(community_id, active_only=True, limit=20)
             text = "📁 Статистика контента:\n\n"
             if not contents:
                 text += "Контент отсутствует"
@@ -836,7 +883,12 @@ class Handlers:
         @self.dp.callback_query_handler(lambda c: c.data == 'stats_users', state="*")
         async def stats_users_callback(callback: types.CallbackQuery, state: FSMContext):
             await callback.answer()
-            chat_id = str(callback.message.chat.id)
+            telegram_chat_id = str(callback.message.chat.id)
+            community_id = self.admin.get_or_create_community(telegram_chat_id, callback.message.chat.title)
+            chat_id = self.admin.get_chat_id_by_community(community_id)
+            if not chat_id:
+                await callback.message.edit_text("Чат не найден")
+                return
             members = self.admin.users.get_chat_members(chat_id, active_only=True, limit=10)
             text = "👥 Статистика пользователей:\n\n"
             if not members:
@@ -853,15 +905,17 @@ class Handlers:
         @self.dp.callback_query_handler(lambda c: c.data == 'back_to_stats', state="*")
         async def back_to_stats_callback(callback: types.CallbackQuery, state: FSMContext):
             await callback.answer()
-            chat_id = str(callback.message.chat.id)
-            await self._show_stats(callback.message, state, chat_id)
+            telegram_chat_id = str(callback.message.chat.id)
+            community_id = self.admin.get_or_create_community(telegram_chat_id, callback.message.chat.title)
+            await self._show_stats(callback.message, state, community_id)
 
         @self.dp.callback_query_handler(lambda c: c.data.startswith('logs_page_'), state="*")
         async def logs_page_callback(callback: types.CallbackQuery, state: FSMContext):
             await callback.answer()
             page = int(callback.data.split('_')[2])
-            chat_id = str(callback.message.chat.id)
-            await self._show_logs(callback.message, state, chat_id, page)
+            telegram_chat_id = str(callback.message.chat.id)
+            community_id = self.admin.get_or_create_community(telegram_chat_id, callback.message.chat.title)
+            await self._show_logs(callback.message, state, community_id, page)
 
         @self.dp.callback_query_handler(lambda c: c.data == 'logs_search', state="*")
         async def logs_search_callback(callback: types.CallbackQuery, state: FSMContext):
@@ -871,7 +925,12 @@ class Handlers:
 
         @self.dp.message_handler(state=AdminStates.LOGS_SEARCH)
         async def logs_search_handler(message: types.Message, state: FSMContext):
-            chat_id = str(message.chat.id)
+            telegram_chat_id = str(message.chat.id)
+            community_id = self.admin.get_or_create_community(telegram_chat_id, message.chat.title)
+            chat_id = self.admin.get_chat_id_by_community(community_id)
+            if not chat_id:
+                await message.answer("Чат не найден")
+                return
             query = message.text.strip()
             logs, total = self.admin.get_logs_paginated(chat_id, search=query, limit=50)
             if not logs:
@@ -892,12 +951,14 @@ class Handlers:
         @self.dp.callback_query_handler(lambda c: c.data == 'back_to_logs', state="*")
         async def back_to_logs_callback(callback: types.CallbackQuery, state: FSMContext):
             await callback.answer()
-            chat_id = str(callback.message.chat.id)
-            await self._show_logs(callback.message, state, chat_id)
+            telegram_chat_id = str(callback.message.chat.id)
+            community_id = self.admin.get_or_create_community(telegram_chat_id, callback.message.chat.title)
+            await self._show_logs(callback.message, state, community_id)
 
         @self.dp.callback_query_handler(lambda c: c.data.startswith('users_page_'), state="*")
         async def users_page_callback(callback: types.CallbackQuery, state: FSMContext):
             await callback.answer()
             page = int(callback.data.split('_')[2])
-            chat_id = str(callback.message.chat.id)
-            await self._show_users_list(callback.message, state, chat_id, page)
+            telegram_chat_id = str(callback.message.chat.id)
+            community_id = self.admin.get_or_create_community(telegram_chat_id, callback.message.chat.title)
+            await self._show_users_list(callback.message, state, community_id, page)
