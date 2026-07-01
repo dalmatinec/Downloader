@@ -1,10 +1,11 @@
-# admin.py - ЧАСТЬ 1 (Импорты, состояния, класс AdminPanel, проверки прав, главное меню)
+# admin.py - ЧАСТЬ 1 (Импорты, состояния, инициализация, проверки прав)
 from aiogram import types
 from aiogram.dispatcher import FSMContext
 from aiogram.dispatcher.filters.state import State, StatesGroup
 from typing import Optional, Dict, Any, List
 import logging
 import sqlite3
+import uuid
 from datetime import datetime
 
 from config import ADMIN_IDS
@@ -116,10 +117,14 @@ class AdminStates(StatesGroup):
     
     # Логи
     LOGS_MAIN = State()
-    LOGS_FILTER = State()
+    LOGS_SEARCH = State()
     
     # Настройки
     SETTINGS_CATEGORY = State()
+    SETTINGS_CREATE_CATEGORY = State()
+    SETTINGS_CREATE_KEY = State()
+    SETTINGS_CREATE_VALUE = State()
+    SETTINGS_CREATE_TYPE = State()
     SETTINGS_EDIT_KEY = State()
     SETTINGS_EDIT_VALUE = State()
     SETTINGS_EDIT_TYPE = State()
@@ -144,6 +149,124 @@ class AdminPanel:
         self.logger = logging.getLogger(__name__)
 
     # ============================================
+    # РАБОТА С COMMUNITY И CHAT
+    # ============================================
+
+    def get_or_create_community(self, telegram_chat_id: str, chat_title: str = None) -> str:
+        """Получить или создать community_id по telegram_chat_id"""
+        with sqlite3.connect(self.db.db_path) as conn:
+            conn.row_factory = sqlite3.Row
+            cursor = conn.cursor()
+            
+            cursor.execute('SELECT * FROM chats WHERE chat_id = ?', (telegram_chat_id,))
+            chat = cursor.fetchone()
+            
+            if chat:
+                return chat['community_id']
+            
+            community_id = str(uuid.uuid4())
+            cursor.execute('''
+                INSERT INTO communities (id, name, description, is_active)
+                VALUES (?, ?, ?, ?)
+            ''', (community_id, chat_title or f'Community {telegram_chat_id}', '', 1))
+            
+            chat_id = str(uuid.uuid4())
+            cursor.execute('''
+                INSERT INTO chats (id, community_id, chat_id, chat_type, title, is_active)
+                VALUES (?, ?, ?, ?, ?, ?)
+            ''', (chat_id, community_id, telegram_chat_id, 'private', chat_title or '', 1))
+            
+            conn.commit()
+            return community_id
+
+    def get_chat_id_by_community(self, community_id: str) -> Optional[str]:
+        """Получить chat_id (telegram) по community_id"""
+        with sqlite3.connect(self.db.db_path) as conn:
+            conn.row_factory = sqlite3.Row
+            cursor = conn.cursor()
+            cursor.execute('SELECT chat_id FROM chats WHERE community_id = ? LIMIT 1', (community_id,))
+            row = cursor.fetchone()
+            return row['chat_id'] if row else None
+
+    def update_community_name(self, community_id: str, name: str) -> bool:
+        """Обновить название сообщества"""
+        with sqlite3.connect(self.db.db_path) as conn:
+            cursor = conn.cursor()
+            cursor.execute('''
+                UPDATE communities SET name = ?, updated_at = CURRENT_TIMESTAMP
+                WHERE id = ?
+            ''', (name, community_id))
+            conn.commit()
+            return cursor.rowcount > 0
+
+    def update_community_description(self, community_id: str, description: str) -> bool:
+        """Обновить описание сообщества"""
+        with sqlite3.connect(self.db.db_path) as conn:
+            cursor = conn.cursor()
+            cursor.execute('''
+                UPDATE communities SET description = ?, updated_at = CURRENT_TIMESTAMP
+                WHERE id = ?
+            ''', (description, community_id))
+            conn.commit()
+            return cursor.rowcount > 0
+
+    def update_community_avatar(self, community_id: str, file_id: str) -> bool:
+        """Обновить аватар сообщества"""
+        with sqlite3.connect(self.db.db_path) as conn:
+            cursor = conn.cursor()
+            cursor.execute('''
+                UPDATE communities SET avatar_file_id = ?, updated_at = CURRENT_TIMESTAMP
+                WHERE id = ?
+            ''', (file_id, community_id))
+            conn.commit()
+            return cursor.rowcount > 0
+
+    def update_community_logo(self, community_id: str, file_id: str) -> bool:
+        """Обновить логотип сообщества"""
+        with sqlite3.connect(self.db.db_path) as conn:
+            cursor = conn.cursor()
+            cursor.execute('''
+                UPDATE communities SET logo_file_id = ?, updated_at = CURRENT_TIMESTAMP
+                WHERE id = ?
+            ''', (file_id, community_id))
+            conn.commit()
+            return cursor.rowcount > 0
+
+    def get_community_info(self, community_id: str) -> str:
+        """Получить информацию о сообществе"""
+        with sqlite3.connect(self.db.db_path) as conn:
+            conn.row_factory = sqlite3.Row
+            cursor = conn.cursor()
+            
+            cursor.execute('SELECT * FROM communities WHERE id = ?', (community_id,))
+            row = cursor.fetchone()
+            
+            if not row:
+                return "🏠 Сообщество не найдено"
+            
+            community = dict(row)
+            text = "🏠 Информация о сообществе:\n\n"
+            text += f"📌 Название: {community.get('name', 'Не задано')}\n"
+            text += f"📝 Описание: {community.get('description', 'Не задано')}\n"
+            text += f"🆔 ID: {community.get('id')}\n"
+            text += f"📅 Создано: {community.get('created_at', '')[:16]}\n"
+            text += f"📅 Обновлено: {community.get('updated_at', '')[:16]}\n"
+            text += f"📊 Статус: {'✅ Активно' if community.get('is_active', 1) else '❌ Неактивно'}\n"
+            
+            menus = self.menu.get_menus(community_id)
+            text += f"📋 Меню: {len(menus)}\n"
+            
+            content = self.content.get_all(community_id)
+            text += f"📁 Контент: {len(content)}\n"
+            
+            chat_id = self.get_chat_id_by_community(community_id)
+            if chat_id:
+                members_count = self.users.get_chat_members_count(chat_id)
+                text += f"👥 Пользователей: {members_count}\n"
+            
+            return text
+
+    # ============================================
     # ПРОВЕРКИ ПРАВ
     # ============================================
 
@@ -151,7 +274,7 @@ class AdminPanel:
         """Проверка владельца из конфига"""
         return user_id in ADMIN_IDS
 
-    def is_admin(self, chat_id: str, user_id: int) -> bool:
+    def is_admin(self, community_id: str, user_id: int) -> bool:
         """
         Проверка прав администратора
         1. Сначала проверяем владельца из конфига
@@ -160,99 +283,58 @@ class AdminPanel:
         if self.is_owner(user_id):
             return True
         
-        return self.moderation.has_user_permission(chat_id, user_id, 'admin_panel_access')
+        return self.moderation.has_user_permission(community_id, user_id, 'admin_panel_access')
 
-    def can_manage_content(self, chat_id: str, user_id: int) -> bool:
+    def can_manage_content(self, community_id: str, user_id: int) -> bool:
         """Проверка права управления контентом"""
         if self.is_owner(user_id):
             return True
-        return self.moderation.has_user_permission(chat_id, user_id, 'manage_content')
+        return self.moderation.has_user_permission(community_id, user_id, 'manage_content')
 
-    def can_manage_users(self, chat_id: str, user_id: int) -> bool:
+    def can_manage_users(self, community_id: str, user_id: int) -> bool:
         """Проверка права управления пользователями"""
         if self.is_owner(user_id):
             return True
-        return self.moderation.has_user_permission(chat_id, user_id, 'manage_users')
+        return self.moderation.has_user_permission(community_id, user_id, 'manage_users')
 
-    def can_manage_roles(self, chat_id: str, user_id: int) -> bool:
+    def can_manage_roles(self, community_id: str, user_id: int) -> bool:
         """Проверка права управления ролями"""
         if self.is_owner(user_id):
             return True
-        return self.moderation.has_user_permission(chat_id, user_id, 'manage_roles')
+        return self.moderation.has_user_permission(community_id, user_id, 'manage_roles')
 
-    def can_manage_settings(self, chat_id: str, user_id: int) -> bool:
+    def can_manage_settings(self, community_id: str, user_id: int) -> bool:
         """Проверка права управления настройками"""
         if self.is_owner(user_id):
             return True
-        return self.moderation.has_user_permission(chat_id, user_id, 'manage_settings')
+        return self.moderation.has_user_permission(community_id, user_id, 'manage_settings')
 
-    def can_moderate(self, chat_id: str, user_id: int) -> bool:
+    def can_moderate(self, community_id: str, user_id: int) -> bool:
         """Проверка права модерации"""
         if self.is_owner(user_id):
             return True
-        return self.moderation.has_user_permission(chat_id, user_id, 'moderate_users')
+        return self.moderation.has_user_permission(community_id, user_id, 'moderate_users')
 
-    def can_view_stats(self, chat_id: str, user_id: int) -> bool:
+    def can_view_stats(self, community_id: str, user_id: int) -> bool:
         """Проверка права просмотра статистики"""
         if self.is_owner(user_id):
             return True
-        return self.moderation.has_user_permission(chat_id, user_id, 'view_stats')
+        return self.moderation.has_user_permission(community_id, user_id, 'view_stats')
 
-    def can_view_logs(self, chat_id: str, user_id: int) -> bool:
+    def can_view_logs(self, community_id: str, user_id: int) -> bool:
         """Проверка права просмотра логов"""
         if self.is_owner(user_id):
             return True
-        return self.moderation.has_user_permission(chat_id, user_id, 'view_logs')
+        return self.moderation.has_user_permission(community_id, user_id, 'view_logs')
 
+# admin.py - ЧАСТЬ 2 (Работа с контентом, меню, пользователями, наказаниями)
     # ============================================
-    # ГЛАВНОЕ МЕНЮ АДМИНА (строится из БД)
-    # ============================================
-
-    def get_admin_main_menu(self, chat_id: str, user_id: int) -> types.ReplyKeyboardMarkup:
-        """
-        Главное меню админа строится из БД
-        Меню с is_main = 1 для админ-панели
-        """
-        main_menu = self.menu.get_main_menu(chat_id)
-        if not main_menu:
-            return self._get_default_admin_menu()
-        
-        buttons = self.menu.get_menu_buttons(main_menu['id'])
-        
-        filtered_buttons = []
-        for btn in buttons:
-            action_data = btn.get('action_data', {})
-            required_permission = action_data.get('required_permission')
-            if required_permission:
-                if not self.moderation.has_user_permission(chat_id, user_id, required_permission):
-                    continue
-            filtered_buttons.append(btn)
-        
-        return KeyboardBuilder.build_reply(filtered_buttons)
-
-    def _get_default_admin_menu(self) -> types.ReplyKeyboardMarkup:
-        """Базовое меню админа (если не настроено в БД)"""
-        buttons = [
-            {'text': '📁 Контент', 'row_num': 0},
-            {'text': '📋 Меню', 'row_num': 0},
-            {'text': '👥 Пользователи', 'row_num': 1},
-            {'text': '🔨 Модерация', 'row_num': 1},
-            {'text': '👑 Роли', 'row_num': 2},
-            {'text': '📊 Статистика', 'row_num': 2},
-            {'text': '📝 Логи', 'row_num': 3},
-            {'text': '⚙️ Настройки', 'row_num': 3},
-            {'text': '🚪 Выход', 'row_num': 4}
-        ]
-        return KeyboardBuilder.build_reply(buttons)
-# admin.py - ЧАСТЬ 2 (Методы получения данных из БД)
-    # ============================================
-    # ПОЛУЧЕНИЕ ДАННЫХ ИЗ БД
+    # КОНТЕНТ
     # ============================================
 
-    def get_content_list_text(self, page: int = 0, per_page: int = 10) -> str:
-        """Текст списка контента из БД"""
-        contents = self.content.get_all(active_only=False, limit=per_page, offset=page * per_page)
-        total = len(self.content.get_all(active_only=False))
+    def get_content_list_text(self, community_id: str, page: int = 0, per_page: int = 10) -> str:
+        """Текст списка контента"""
+        contents, total = self.content.get_paginated(community_id, active_only=False, limit=per_page, offset=page*per_page)
         
         if not contents:
             return "📁 Контент отсутствует.\n\nНажмите '➕ Добавить', чтобы создать первый контент."
@@ -269,11 +351,15 @@ class AdminPanel:
         text += f"\nСтраница {page + 1} из {total_pages} | Всего: {total}"
         return text
 
+    # ============================================
+    # МЕНЮ
+    # ============================================
+
     def get_menu_list_text(self, community_id: str) -> str:
-        """Текст списка меню из БД"""
+        """Текст списка меню"""
         menus = self.menu.get_menus(community_id, active_only=False)
         if not menus:
-            return "📋 Меню отсутствуют.\n\nНажмите '➕ Добавить', чтобы создать первое меню."
+            return "📋 Меню отсутствуют.\n\nНажмите '➕ Создать', чтобы создать первое меню."
         
         text = "📋 Список меню:\n\n"
         for menu in menus:
@@ -284,26 +370,13 @@ class AdminPanel:
         
         return text
 
-    def get_buttons_list_text(self, menu_id: str) -> str:
-        """Текст списка кнопок меню из БД"""
-        buttons = self.menu.get_all_menu_buttons(menu_id, active_only=False)
-        if not buttons:
-            return "🔘 Кнопки отсутствуют.\n\nНажмите '➕ Добавить', чтобы создать первую кнопку."
-        
-        text = "🔘 Список кнопок:\n\n"
-        for btn in buttons:
-            status = "✅" if btn.get('is_active', 1) else "❌"
-            action = btn.get('action_name', 'Неизвестно')
-            children = len(self.menu.get_button_children(btn['id'], active_only=False))
-            child_text = f" (🔽{children})" if children else ""
-            text += f"{status} {btn.get('text')} [{action}] ряд {btn.get('row_num', 0)}/{btn.get('order_num', 0)}{child_text}\n"
-        
-        return text
+    # ============================================
+    # ПОЛЬЗОВАТЕЛИ
+    # ============================================
 
     def get_users_list_text(self, chat_id: str, page: int = 0, per_page: int = 10) -> str:
-        """Текст списка пользователей из БД"""
-        members = self.users.get_chat_members(chat_id, active_only=False, limit=per_page, offset=page * per_page)
-        total = self.users.get_chat_members_count(chat_id, active_only=False)
+        """Текст списка пользователей"""
+        members, total = self.users.get_chat_members_paginated(chat_id, active_only=False, limit=per_page, offset=page*per_page)
         
         if not members:
             return "👥 Пользователи отсутствуют."
@@ -327,12 +400,16 @@ class AdminPanel:
         text += f"\nСтраница {page + 1} из {total_pages} | Всего: {total}"
         return text
 
+    # ============================================
+    # НАКАЗАНИЯ
+    # ============================================
+
     def get_punishments_list_text(self, chat_id: str, chat_member_id: int = None, page: int = 0, per_page: int = 10) -> str:
-        """Текст списка наказаний из БД"""
+        """Текст списка наказаний"""
         if chat_member_id:
             punishments = self.moderation.get_punishments_by_chat_member(chat_member_id, active_only=False, limit=per_page)
         else:
-            punishments = self.moderation.get_all_punishments(active_only=False, limit=per_page, offset=page * per_page)
+            punishments = self.moderation.get_all_punishments(active_only=False, limit=per_page, offset=page*per_page)
         
         if not punishments:
             return "🔨 Наказания отсутствуют."
@@ -348,11 +425,15 @@ class AdminPanel:
         
         return text
 
+    # ============================================
+    # РОЛИ
+    # ============================================
+
     def get_roles_list_text(self) -> str:
-        """Текст списка ролей из БД"""
+        """Текст списка ролей"""
         roles = self.moderation.get_all_roles()
         if not roles:
-            return "👑 Роли отсутствуют.\n\nНажмите '➕ Добавить', чтобы создать первую роль."
+            return "👑 Роли отсутствуют.\n\nНажмите '➕ Создать роль', чтобы создать первую роль."
         
         text = "👑 Список ролей:\n\n"
         for role in roles:
@@ -365,11 +446,15 @@ class AdminPanel:
         
         return text
 
+    # ============================================
+    # ПРАВА
+    # ============================================
+
     def get_permissions_list_text(self) -> str:
-        """Текст списка прав из БД"""
+        """Текст списка прав"""
         permissions = self.moderation.get_all_permissions()
         if not permissions:
-            return "🔑 Права отсутствуют.\n\nНажмите '➕ Добавить', чтобы создать первое право."
+            return "🔑 Права отсутствуют.\n\nНажмите '➕ Создать', чтобы создать первое право."
         
         text = "🔑 Список прав:\n\n"
         for perm in permissions:
@@ -380,60 +465,14 @@ class AdminPanel:
         
         return text
 
-    def get_logs_text(self, chat_id: str, filters: Dict[str, Any] = None, page: int = 0, per_page: int = 50) -> str:
-        """Текст логов из БД"""
-        with sqlite3.connect(self.db.db_path) as conn:
-            conn.row_factory = sqlite3.Row
-            cursor = conn.cursor()
-            
-            query = '''
-                SELECT l.*, lvl.name as level_name,
-                       u.username as user_username,
-                       u2.username as target_username
-                FROM logs l
-                LEFT JOIN log_levels lvl ON lvl.id = l.log_level_id
-                LEFT JOIN users u ON u.user_id = l.user_id
-                LEFT JOIN users u2 ON u2.user_id = l.target_id
-                WHERE l.chat_id = ?
-            '''
-            params = [chat_id]
-            
-            if filters:
-                if filters.get('level'):
-                    query += ' AND l.log_level_id = ?'
-                    params.append(filters['level'])
-                if filters.get('action'):
-                    query += ' AND l.action LIKE ?'
-                    params.append(f'%{filters["action"]}%')
-                if filters.get('user_id'):
-                    query += ' AND l.user_id = ?'
-                    params.append(filters['user_id'])
-            
-            query += ' ORDER BY l.created_at DESC LIMIT ? OFFSET ?'
-            params.extend([per_page, page * per_page])
-            
-            cursor.execute(query, params)
-            rows = cursor.fetchall()
-            
-            if not rows:
-                return "📝 Логи отсутствуют."
-            
-            text = "📝 Последние логи:\n\n"
-            for row in rows:
-                row = dict(row)
-                level = row.get('level_name', 'info')
-                action = row.get('action', '')
-                username = row.get('user_username') or str(row.get('user_id')) or 'система'
-                created = row.get('created_at', '')[:16]
-                text += f"[{created}] {level.upper()} - {username}: {action}\n"
-            
-            text += f"\nСтраница {page + 1}"
-            return text
+    # ============================================
+    # СТАТИСТИКА
+    # ============================================
 
     def get_stats_text(self, chat_id: str) -> str:
-        """Текст статистики из БД"""
+        """Текст общей статистики"""
         members_count = self.users.get_chat_members_count(chat_id)
-        content_count = len(self.content.get_all())
+        content_count = len(self.content.get_all(community_id=None))
         punishments_active = self.moderation.count_active_punishments()
         
         text = "📊 Статистика сообщества:\n\n"
@@ -441,37 +480,109 @@ class AdminPanel:
         text += f"📁 Контента: {content_count}\n"
         text += f"🔨 Активных наказаний: {punishments_active}\n"
         
+        return text
+
+    def get_stats_content(self, chat_id: str) -> str:
+        """Статистика контента"""
+        contents = self.content.get_all(community_id=None, active_only=True, limit=20)
+        text = "📁 Статистика контента:\n\n"
+        if not contents:
+            text += "Контент отсутствует"
+        else:
+            for content in contents:
+                text += f"• {content.get('title')} - 👁{content.get('views', 0)} ⬇{content.get('downloads', 0)}\n"
+        return text
+
+    def get_stats_users(self, chat_id: str) -> str:
+        """Статистика пользователей"""
+        members = self.users.get_chat_members(chat_id, active_only=True, limit=10)
+        text = "👥 Статистика пользователей:\n\n"
+        if not members:
+            text += "Пользователи отсутствуют"
+        else:
+            text += "Топ по сообщениям:\n"
+            for i, member in enumerate(members[:10], 1):
+                name = member.get('username') or member.get('first_name') or 'Неизвестно'
+                text += f"{i}. {name} - {member.get('total_messages', 0)} сообщений\n"
+        return text
+
+    # ============================================
+    # ЛОГИ
+    # ============================================
+
+    def get_logs_paginated(self, chat_id: str, search: str = None, limit: int = 50, offset: int = 0) -> tuple:
+        """Получить логи с пагинацией"""
         with sqlite3.connect(self.db.db_path) as conn:
             conn.row_factory = sqlite3.Row
             cursor = conn.cursor()
             
-            cursor.execute('''
-                SELECT cm.user_id, u.username, u.first_name, cm.total_messages
-                FROM chat_members cm
-                JOIN users u ON u.user_id = cm.user_id
-                WHERE cm.chat_id = ? AND cm.is_active = 1
-                ORDER BY cm.total_messages DESC
-                LIMIT 5
-            ''', (chat_id,))
+            query = '''
+                SELECT l.*, lvl.name as level_name,
+                       u.username as user_username
+                FROM logs l
+                LEFT JOIN log_levels lvl ON lvl.id = l.log_level_id
+                LEFT JOIN users u ON u.user_id = l.user_id
+                WHERE l.chat_id = ?
+            '''
+            params = [chat_id]
             
-            top_users = cursor.fetchall()
-            if top_users:
-                text += "\n🏆 Топ пользователей:\n"
-                for i, user in enumerate(top_users, 1):
-                    user = dict(user)
-                    name = user.get('username') or user.get('first_name') or 'Неизвестно'
-                    text += f"{i}. {name} - {user.get('total_messages', 0)} сообщений\n"
+            if search:
+                query += ' AND (l.action LIKE ? OR l.details LIKE ?)'
+                params.append(f'%{search}%')
+                params.append(f'%{search}%')
+            
+            # Считаем общее количество
+            count_query = f'SELECT COUNT(*) FROM ({query})'
+            cursor.execute(count_query, params)
+            total = cursor.fetchone()[0]
+            
+            query += ' ORDER BY l.created_at DESC LIMIT ? OFFSET ?'
+            params.extend([limit, offset])
+            
+            cursor.execute(query, params)
+            rows = cursor.fetchall()
+            
+            logs = []
+            for row in rows:
+                row = dict(row)
+                logs.append({
+                    'id': row.get('id'),
+                    'level_name': row.get('level_name', 'info'),
+                    'action': row.get('action', ''),
+                    'user_id': row.get('user_id'),
+                    'username': row.get('user_username'),
+                    'target_id': row.get('target_id'),
+                    'details': row.get('details', ''),
+                    'created_at': row.get('created_at', '')
+                })
+            
+            return logs, total
+
+    def get_logs_text(self, chat_id: str, search: str = None, page: int = 0, per_page: int = 50) -> str:
+        """Текст логов"""
+        logs, total = self.get_logs_paginated(chat_id, search=search, limit=per_page, offset=page*per_page)
         
-        popular = self.content.get_all(active_only=True, limit=5)
-        if popular:
-            text += "\n🔥 Популярный контент:\n"
-            for content in popular:
-                text += f"• {content.get('title')} 👁{content.get('views', 0)} ⬇{content.get('downloads', 0)}\n"
+        if not logs:
+            return "📝 Логи отсутствуют."
         
+        text = "📝 Последние логи:\n\n"
+        for log in logs:
+            level = log.get('level_name', 'info')
+            action = log.get('action', '')
+            username = log.get('username') or str(log.get('user_id')) or 'система'
+            created = log.get('created_at', '')[:16]
+            text += f"[{created}] {level.upper()} - {username}: {action}\n"
+        
+        total_pages = (total // per_page) + (1 if total % per_page else 0)
+        text += f"\nСтраница {page + 1} из {total_pages} | Всего: {total}"
         return text
 
+    # ============================================
+    # НАСТРОЙКИ
+    # ============================================
+
     def get_settings_text(self, community_id: str, category: str = None) -> str:
-        """Текст настроек из БД"""
+        """Текст настроек"""
         if category:
             settings = self.settings.get_by_category(community_id, category)
             text = f"⚙️ Настройки [{category}]:\n\n"
@@ -490,37 +601,90 @@ class AdminPanel:
         
         return text
 
-    def get_community_info_text(self, community_id: str) -> str:
-        """Текст информации о сообществе из БД"""
-        with sqlite3.connect(self.db.db_path) as conn:
-            conn.row_factory = sqlite3.Row
-            cursor = conn.cursor()
-            
-            cursor.execute('SELECT * FROM communities WHERE id = ?', (community_id,))
-            row = cursor.fetchone()
-            
-            if not row:
-                return "🏠 Сообщество не найдено."
-            
-            community = dict(row)
-            text = "🏠 Информация о сообществе:\n\n"
-            text += f"📌 Название: {community.get('name', 'Не задано')}\n"
-            text += f"📝 Описание: {community.get('description', 'Не задано')}\n"
-            text += f"🆔 ID: {community.get('id')}\n"
-            text += f"📅 Создано: {community.get('created_at', '')[:16]}\n"
-            text += f"📅 Обновлено: {community.get('updated_at', '')[:16]}\n"
-            text += f"📊 Статус: {'✅ Активно' if community.get('is_active', 1) else '❌ Неактивно'}\n"
-            
-            menus = self.menu.get_menus(community_id)
-            text += f"📋 Меню: {len(menus)}\n"
-            
-            content = self.content.get_all()
-            text += f"📁 Контент: {len(content)}\n"
-            
-            return text
+# admin.py - ЧАСТЬ 3 (Главное меню, CRUD для content, menu, buttons)
+    # ============================================
+    # ГЛАВНОЕ МЕНЮ АДМИНА
+    # ============================================
+
+    def get_admin_main_menu(self, community_id: str, user_id: int) -> types.ReplyKeyboardMarkup:
+        """
+        Главное меню админа строится из БД
+        Меню с is_main = 1 для админ-панели
+        """
+        main_menu = self.menu.get_main_menu(community_id)
+        if not main_menu:
+            return self._get_default_admin_menu()
+        
+        buttons = self.menu.get_menu_buttons(main_menu['id'])
+        
+        filtered_buttons = []
+        for btn in buttons:
+            action_data = btn.get('action_data', {})
+            required_permission = action_data.get('required_permission')
+            if required_permission:
+                if not self.moderation.has_user_permission(community_id, user_id, required_permission):
+                    continue
+            filtered_buttons.append(btn)
+        
+        return KeyboardBuilder.build_reply(filtered_buttons)
+
+    def _get_default_admin_menu(self) -> types.ReplyKeyboardMarkup:
+        """Базовое меню админа (если не настроено в БД)"""
+        buttons = [
+            {'text': '📁 Контент', 'row_num': 0},
+            {'text': '📋 Меню', 'row_num': 0},
+            {'text': '👥 Пользователи', 'row_num': 1},
+            {'text': '🔨 Модерация', 'row_num': 1},
+            {'text': '👑 Роли', 'row_num': 2},
+            {'text': '📊 Статистика', 'row_num': 2},
+            {'text': '📝 Логи', 'row_num': 3},
+            {'text': '⚙️ Настройки', 'row_num': 3},
+            {'text': '🚪 Выход', 'row_num': 4}
+        ]
+        return KeyboardBuilder.build_reply(buttons)
+
+    # ============================================
+    # CRUD ДЛЯ КОНТЕНТА (дополнительные методы)
+    # ============================================
+
+    def get_content_paginated(self, community_id: str, active_only: bool = True, limit: int = 10, offset: int = 0) -> tuple:
+        """Получить контент с пагинацией"""
+        return self.content.get_paginated(community_id, active_only, limit, offset)
+
+    # ============================================
+    # CRUD ДЛЯ МЕНЮ (дополнительные методы)
+    # ============================================
+
+    def get_menu_with_buttons(self, menu_id: str) -> Dict[str, Any]:
+        """Получить меню с кнопками"""
+        menu = self.menu.get_menu(menu_id)
+        if not menu:
+            return {}
+        
+        buttons = self.menu.get_all_menu_buttons(menu_id, active_only=False)
+        menu['buttons'] = buttons
+        return menu
+
+    # ============================================
+    # CRUD ДЛЯ КНОПОК (дополнительные методы)
+    # ============================================
+
+    def get_button_with_children(self, button_id: str) -> Dict[str, Any]:
+        """Получить кнопку с дочерними"""
+        button = self.menu.get_button(button_id)
+        if not button:
+            return {}
+        
+        children = self.menu.get_button_children(button_id, active_only=False)
+        button['children'] = children
+        return button
+
+    # ============================================
+    # ПОЛЬЗОВАТЕЛИ (дополнительные методы)
+    # ============================================
 
     def get_user_info_text(self, chat_id: str, user_id: int) -> str:
-        """Текст информации о пользователе из БД"""
+        """Текст информации о пользователе"""
         user = self.users.get(user_id)
         if not user:
             return "👤 Пользователь не найден."
@@ -553,3 +717,49 @@ class AdminPanel:
                 text += f"• {p.get('type_name')}: {p.get('reason', 'Без причины')}\n"
         
         return text
+
+    # ============================================
+    # МОДЕРАЦИЯ (дополнительные методы)
+    # ============================================
+
+    def get_punishment_info(self, punishment_id: int) -> Optional[Dict[str, Any]]:
+        """Получить информацию о наказании"""
+        return self.moderation.get_punishment(punishment_id)
+
+    # ============================================
+    # РОЛИ (дополнительные методы)
+    # ============================================
+
+    def get_role_with_permissions(self, role_id: str) -> Dict[str, Any]:
+        """Получить роль с правами"""
+        role = self.moderation.get_role(role_id)
+        if not role:
+            return {}
+        
+        permissions = self.moderation.get_role_permissions(role_id)
+        role['permissions'] = permissions
+        return role
+
+    # ============================================
+    # ПРАВА (дополнительные методы)
+    # ============================================
+
+    def get_permission_with_roles(self, permission_id: str) -> Dict[str, Any]:
+        """Получить право с ролями"""
+        permission = self.moderation.get_permission(permission_id)
+        if not permission:
+            return {}
+        
+        # Получаем роли у которых есть это право
+        with sqlite3.connect(self.db.db_path) as conn:
+            conn.row_factory = sqlite3.Row
+            cursor = conn.cursor()
+            cursor.execute('''
+                SELECT r.* FROM roles r
+                JOIN role_permissions rp ON rp.role_id = r.id
+                WHERE rp.permission_id = ?
+            ''', (permission_id,))
+            roles = [dict(row) for row in cursor.fetchall()]
+        
+        permission['roles'] = roles
+        return permission
