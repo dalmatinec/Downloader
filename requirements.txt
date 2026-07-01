@@ -1,0 +1,2 @@
+aiogram==2.25.1
+aiogram-dialog==1.9.0
