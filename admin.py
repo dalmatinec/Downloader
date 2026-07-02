@@ -1,6 +1,7 @@
 import logging
 from typing import Optional, List, Dict, Any
 from datetime import datetime, timedelta
+from triggers import refresh_triggers_cache
 
 from aiogram import Dispatcher, F
 from aiogram.types import Message, CallbackQuery
