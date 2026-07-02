@@ -403,6 +403,10 @@ async def admin_trigger_add_value(message: Message, state: FSMContext) -> None:
     value = None if message.text == '-' else message.text.strip()
     trigger_id = await db.add_trigger(keywords=data['keywords'], action=data['action'], value=value)
     await log_action(user.id, "admin_trigger_add", f"Added trigger: {data['keywords']} (ID: {trigger_id})")
+    
+    # Обновляем кэш триггеров
+    await refresh_triggers_cache()
+    
     await state.clear()
     await safe_send_message(message.bot, message.chat.id, texts.TRIGGER_ADDED, reply_markup=get_admin_triggers_kb())
 
@@ -424,6 +428,50 @@ async def admin_triggers_list(callback: CallbackQuery) -> None:
     await log_action(user.id, "admin_triggers_list", f"Showing {len(triggers)} triggers")
     await safe_edit_message(callback.bot, callback=callback, text=text, reply_markup=get_admin_triggers_kb())
     await callback.answer()
+
+
+async def admin_trigger_delete_start(callback: CallbackQuery, state: FSMContext) -> None:
+    """Начало удаления триггера"""
+    user = callback.from_user
+    if not await is_admin(user.id):
+        await callback.answer(texts.ACCESS_DENIED)
+        return
+    triggers = await db.get_all_triggers()
+    if not triggers:
+        await callback.answer("⚡ Нет триггеров для удаления")
+        return
+    await state.update_data(action="trigger_delete")
+    text = "🗑 Удаление триггера\n\nВведите ID триггера для удаления:\n"
+    for trigger in triggers:
+        text += f"• ID: {trigger['id']} — {escape_html(trigger['keywords'])}\n"
+    await safe_edit_message(callback.bot, callback=callback, text=text, reply_markup=get_cancel_kb())
+    await state.set_state(TriggerStates.waiting_edit)
+    await callback.answer()
+
+
+async def admin_trigger_delete_execute(message: Message, state: FSMContext) -> None:
+    """Выполнение удаления триггера"""
+    user = message.from_user
+    if not await is_admin(user.id):
+        await safe_send_message(message.bot, message.chat.id, texts.ACCESS_DENIED)
+        return
+    try:
+        trigger_id = int(message.text.strip())
+    except ValueError:
+        await safe_send_message(message.bot, message.chat.id, "❌ Введите корректный ID (только цифры):", reply_markup=get_cancel_kb())
+        return
+    trigger = await db.get_trigger_by_id(trigger_id)
+    if not trigger:
+        await safe_send_message(message.bot, message.chat.id, "❌ Триггер с таким ID не найден", reply_markup=get_cancel_kb())
+        return
+    await db.delete_trigger(trigger_id)
+    await log_action(user.id, "admin_trigger_delete", f"Deleted trigger: {trigger['keywords']} (ID: {trigger_id})")
+    
+    # Обновляем кэш триггеров
+    await refresh_triggers_cache()
+    
+    await state.clear()
+    await safe_send_message(message.bot, message.chat.id, texts.TRIGGER_DELETED, reply_markup=get_admin_triggers_kb())
 
 # ============================================================
 # МОДЕРАЦИЯ
