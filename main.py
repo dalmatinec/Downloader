@@ -11,7 +11,7 @@ from users import register_user_handlers
 from admin import register_admin_handlers
 from triggers import refresh_triggers_cache, register_trigger_handlers
 from send import register_broadcast_handlers
-from moderation import register_moderation_handlers
+from moderations import register_moderation_handlers
 from scheduler import start_scheduler
 
 
