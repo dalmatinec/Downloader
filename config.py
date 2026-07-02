@@ -1,5 +1,5 @@
-BOT_TOKEN = "ВАШ_ТОКЕН_ЗДЕСЬ"
-SUPER_ADMIN_ID = 123456789
+BOT_TOKEN = "8995798622:AAGufN8J5PiZzCqujAILqe-fFbU2wuvhw5Y"
+SUPER_ADMIN_ID = 7982614573
 
 CHAT_URL = "https://t.me/your_chat_link"
 CHANNEL_URL = "https://t.me/your_channel_link"
@@ -24,4 +24,4 @@ MAX_BOOKS_PER_PAGE = 20
 LOG_LIMIT = 100
 BROADCAST_DELAY = 0.05
 
-CHAT_ID = -1001234567890
+CHAT_ID = -1004480019939
