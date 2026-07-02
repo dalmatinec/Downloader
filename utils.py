@@ -186,7 +186,7 @@ def parse_duration(text: str) -> int:
         return 0
     
     text = text.strip().lower()
-    match = re.match(r'^(\d+)([mhдчd])$', text)
+    match = re.match(r'^(\d+)([mhдчdм])$', text)
     
     if not match:
         return 0
