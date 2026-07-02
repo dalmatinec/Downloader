@@ -7,7 +7,7 @@ from aiogram.enums import ParseMode
 
 import config
 from database import Database
-from user import register_user_handlers
+from users import register_user_handlers
 from admin import register_admin_handlers
 from triggers import refresh_triggers_cache, register_trigger_handlers
 from send import register_broadcast_handlers
