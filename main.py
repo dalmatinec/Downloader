@@ -1,14 +1,18 @@
-# main.py
+import asyncio
 import logging
-import sqlite3
-from aiogram import Bot, Dispatcher, executor
-from aiogram.contrib.fsm_storage.memory import MemoryStorage
 
-from config import BOT_TOKEN, DATABASE_PATH
+from aiogram import Bot, Dispatcher
+from aiogram.client.default import DefaultBotProperties
+from aiogram.enums import ParseMode
+
+import config
 from database import Database
-from admin import AdminPanel
-from handlers import Handlers
-from callbacks import Callbacks
+from user import register_user_handlers
+from admin import register_admin_handlers
+from triggers import refresh_triggers_cache, register_trigger_handlers
+from send import register_broadcast_handlers
+from moderation import register_moderation_handlers
+from scheduler import start_scheduler
 
 
 # Настройка логирования
@@ -19,46 +23,42 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-def main():
-    """Точка входа"""
+async def main():
+    """Главная функция запуска бота"""
+    logger.info("🐱 Запускаем Кешу...")
     
     # Инициализация БД
-    db = Database(DATABASE_PATH)
-    logger.info("База данных инициализирована")
+    db = Database()
+    await db.init_db()
+    logger.info("✅ База данных готова")
+    
+    # Обновление кэша триггеров
+    await refresh_triggers_cache()
+    logger.info("✅ Кэш триггеров загружен")
     
     # Инициализация бота
-    bot = Bot(token=BOT_TOKEN)
-    storage = MemoryStorage()
-    dp = Dispatcher(bot, storage=storage)
-    logger.info("Бот и диспетчер инициализированы")
+    bot = Bot(
+        token=config.BOT_TOKEN,
+        default=DefaultBotProperties(parse_mode=ParseMode.HTML)
+    )
+    dp = Dispatcher()
     
-    # Проверка наличия сообщества при старте
-    # Если нет - создаем дефолтное для админа (но админ сам создаст через админку)
-    admin_panel = AdminPanel(db)
+    # Регистрация всех обработчиков
+    register_user_handlers(dp)
+    register_admin_handlers(dp)
+    register_trigger_handlers(dp)
+    register_broadcast_handlers(dp)
+    register_moderation_handlers(dp)
+    logger.info("✅ Все обработчики зарегистрированы")
     
-    # Проверяем есть ли хоть одно сообщество
-    with sqlite3.connect(DATABASE_PATH) as conn:
-        cursor = conn.cursor()
-        cursor.execute('SELECT COUNT(*) FROM communities')
-        count = cursor.fetchone()[0]
-        
-        if count == 0:
-            logger.info("Сообществ нет. Будет создано при первом входе администратора.")
-    
-    # Регистрация обработчиков
-    handlers = Handlers(dp, db)
-    handlers.register()
-    logger.info("Handlers зарегистрированы")
-    
-    # Регистрация callback-обработчиков
-    callbacks = Callbacks(dp, db)
-    callbacks.register()
-    logger.info("Callbacks зарегистрированы")
+    # Запуск планировщика в фоне
+    asyncio.create_task(start_scheduler(bot))
+    logger.info("✅ Планировщик запущен")
     
     # Запуск бота
-    logger.info("Бот запущен")
-    executor.start_polling(dp, skip_updates=True)
+    logger.info("✅ Кеша готов к работе!")
+    await dp.start_polling(bot)
 
 
-if __name__ == '__main__':
-    main()
+if __name__ == "__main__":
+    asyncio.run(main())
