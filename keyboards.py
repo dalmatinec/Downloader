@@ -1,252 +1,190 @@
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.utils.keyboard import InlineKeyboardBuilder
+
 import config
+import texts
 
 
 def get_main_kb() -> InlineKeyboardMarkup:
+    """Главное меню"""
     builder = InlineKeyboardBuilder()
     builder.add(
-        InlineKeyboardButton(text="💬 Наш чат", url=config.CHAT_URL),
-        InlineKeyboardButton(text="📢 Наш канал", url=config.CHANNEL_URL)
+        InlineKeyboardButton(text=texts.CHAT_BUTTON, url=config.CHAT_LINK),
+        InlineKeyboardButton(text=texts.CHANNEL_BUTTON, url=config.CHANNEL_LINK)
     )
     builder.add(
-        InlineKeyboardButton(text="🌐 Все наши ссылки", callback_data="links")
+        InlineKeyboardButton(text=texts.LINKS_BUTTON, callback_data="links")
     )
     builder.add(
-        InlineKeyboardButton(text="📚 Книги", callback_data="books"),
-        InlineKeyboardButton(text="❤️ Поддержать проект", callback_data="support")
+        InlineKeyboardButton(text=texts.BOOKS_BUTTON, callback_data="books"),
+        InlineKeyboardButton(text=texts.SUPPORT_BUTTON, callback_data="support")
     )
-    builder.adjust(2)
+    builder.adjust(2, 1, 2)
     return builder.as_markup()
 
 
 def get_links_kb() -> InlineKeyboardMarkup:
-    builder = InlineKeyboardBuilder()
-    socials = [
-        ("▶️ YouTube", config.YOUTUBE_URL),
-        ("📷 Instagram Виталия", config.INSTAGRAM_VITALIY),
-        ("📷 Instagram Любашки", config.INSTAGRAM_LYUBASHKA),
-        ("🎵 TikTok Виталия", config.TIKTOK_VITALIY),
-        ("🎵 TikTok Любашки", config.TIKTOK_LYUBASHKA)
-    ]
-    for text, url in socials:
-        if url:
-            builder.add(InlineKeyboardButton(text=text, url=url))
-    builder.add(InlineKeyboardButton(text="⬅️ Назад", callback_data="main"))
-    builder.adjust(2)
-    return builder.as_markup()
+    """Все наши ссылки"""
+    return get_back_kb("back:main")
 
 
 def get_books_kb(books: list) -> InlineKeyboardMarkup:
+    """Список книг (пользовательский)"""
     builder = InlineKeyboardBuilder()
     for book in books:
-        builder.add(InlineKeyboardButton(
-            text=book['title'],
-            callback_data=f"book:info:{book['id']}"
-        ))
-    builder.add(InlineKeyboardButton(text="⬅️ Назад", callback_data="main"))
-    builder.adjust(2)
+        builder.add(
+            InlineKeyboardButton(
+                text=f"📚 {book['title']}",
+                callback_data=f"book:{book['id']}"
+            )
+        )
+    builder.add(
+        InlineKeyboardButton(text=texts.BACK_BUTTON, callback_data="back:main")
+    )
+    builder.adjust(1)
     return builder.as_markup()
 
 
-def get_book_info_kb(book_id: int) -> InlineKeyboardMarkup:
+def get_book_kb(book_id: int) -> InlineKeyboardMarkup:
+    """Карточка книги"""
     builder = InlineKeyboardBuilder()
-    builder.add(InlineKeyboardButton(
-        text="⬇️ Скачать",
-        callback_data=f"book:download:{book_id}"
-    ))
-    builder.add(InlineKeyboardButton(text="⬅️ Назад", callback_data="books"))
+    builder.add(
+        InlineKeyboardButton(text=texts.DOWNLOAD_BUTTON, callback_data=f"book:download:{book_id}")
+    )
+    builder.add(
+        InlineKeyboardButton(text=texts.BACK_BUTTON, callback_data="back:books")
+    )
     builder.adjust(1)
     return builder.as_markup()
 
 
 def get_support_kb() -> InlineKeyboardMarkup:
+    """Раздел поддержки"""
     builder = InlineKeyboardBuilder()
     builder.add(
-        InlineKeyboardButton(text="💳 Способы поддержки", callback_data="donate_methods"),
-        InlineKeyboardButton(text="⭐ Друзья проекта", callback_data="donators")
+        InlineKeyboardButton(text=texts.DONATORS_BUTTON, callback_data="donators")
     )
-    builder.add(InlineKeyboardButton(text="⬅️ Назад", callback_data="main"))
-    builder.adjust(2)
-    return builder.as_markup()
-
-
-def get_donate_methods_kb() -> InlineKeyboardMarkup:
-    builder = InlineKeyboardBuilder()
-    methods = [
-        ("💳 Карта", config.DONATE_CARD),
-        ("💸 Kaspi", config.DONATE_KASPI),
-        ("🌍 Boosty", config.DONATE_BOOSTY),
-        ("☕ Другое", config.DONATE_OTHER)
-    ]
-    for text, url in methods:
-        if url:
-            builder.add(InlineKeyboardButton(text=text, url=url))
-    builder.add(InlineKeyboardButton(text="⬅️ Назад", callback_data="support"))
-    builder.adjust(2)
+    builder.add(
+        InlineKeyboardButton(text=texts.BACK_BUTTON, callback_data="back:main")
+    )
+    builder.adjust(1)
     return builder.as_markup()
 
 
 def get_donators_kb() -> InlineKeyboardMarkup:
+    """Друзья проекта"""
+    return get_back_kb("back:support")
+
+
+def get_admin_kb() -> InlineKeyboardMarkup:
+    """Главное меню админки"""
     builder = InlineKeyboardBuilder()
-    builder.add(InlineKeyboardButton(text="⬅️ Назад", callback_data="support"))
+    builder.add(
+        InlineKeyboardButton(text=texts.ADMIN_BOOKS_BUTTON, callback_data="admin:books")
+    )
+    builder.add(
+        InlineKeyboardButton(text=texts.ADMIN_DONATORS_BUTTON, callback_data="admin:donators")
+    )
+    builder.add(
+        InlineKeyboardButton(text=texts.ADMIN_STATS_BUTTON, callback_data="admin:stats")
+    )
+    builder.add(
+        InlineKeyboardButton(text=texts.BACK_BUTTON, callback_data="back:main")
+    )
     builder.adjust(1)
-    return builder.as_markup()
-
-
-def get_admin_main_kb() -> InlineKeyboardMarkup:
-    builder = InlineKeyboardBuilder()
-    builder.add(
-        InlineKeyboardButton(text="📚 Управление книгами", callback_data="admin:books"),
-        InlineKeyboardButton(text="👤 Администраторы", callback_data="admin:admins")
-    )
-    builder.add(
-        InlineKeyboardButton(text="⚡ Триггеры", callback_data="admin:triggers"),
-        InlineKeyboardButton(text="📊 Статистика", callback_data="admin:stats")
-    )
-    builder.add(
-        InlineKeyboardButton(text="📢 Рассылки", callback_data="admin:broadcast"),
-        InlineKeyboardButton(text="👥 Модерация", callback_data="admin:moderation")
-    )
-    builder.add(
-        InlineKeyboardButton(text="🎥 Новое видео", callback_data="admin:broadcast:video"),
-        InlineKeyboardButton(text="⭐ Друзья проекта", callback_data="admin:donators")
-    )
-    builder.add(
-        InlineKeyboardButton(text="📋 Логи", callback_data="admin:logs")
-    )
-    builder.adjust(2)
     return builder.as_markup()
 
 
 def get_admin_books_kb() -> InlineKeyboardMarkup:
+    """Меню управления книгами (админ)"""
     builder = InlineKeyboardBuilder()
     builder.add(
-        InlineKeyboardButton(text="➕ Добавить", callback_data="admin:books:add"),
-        InlineKeyboardButton(text="✏️ Редактировать", callback_data="admin:books:edit")
+        InlineKeyboardButton(text=texts.ADD_BOOK_BUTTON, callback_data="admin:book:add")
     )
     builder.add(
-        InlineKeyboardButton(text="🗑 Удалить", callback_data="admin:books:delete")
+        InlineKeyboardButton(text=texts.DELETE_BOOK_BUTTON, callback_data="admin:book:delete")
     )
-    builder.add(InlineKeyboardButton(text="⬅️ Назад", callback_data="admin:menu"))
-    builder.adjust(2)
-    return builder.as_markup()
-
-
-def get_admin_book_edit_kb() -> InlineKeyboardMarkup:
-    builder = InlineKeyboardBuilder()
-    builder.add(InlineKeyboardButton(text="⬅️ Назад", callback_data="admin:books"))
+    builder.add(
+        InlineKeyboardButton(text=texts.BACK_BUTTON, callback_data="back:admin")
+    )
     builder.adjust(1)
     return builder.as_markup()
 
 
-def get_admin_admins_kb() -> InlineKeyboardMarkup:
+def get_admin_delete_books_kb(books: list) -> InlineKeyboardMarkup:
+    """Список книг для удаления (админ)"""
     builder = InlineKeyboardBuilder()
+    for book in books:
+        builder.add(
+            InlineKeyboardButton(
+                text=f"🗑 {book['title']}",
+                callback_data=f"admin:book:delete:{book['id']}"
+            )
+        )
     builder.add(
-        InlineKeyboardButton(text="➕ Добавить администратора", callback_data="admin:admins:add"),
-        InlineKeyboardButton(text="➖ Удалить администратора", callback_data="admin:admins:remove")
+        InlineKeyboardButton(text=texts.BACK_BUTTON, callback_data="back:admin:books")
     )
-    builder.add(InlineKeyboardButton(text="⬅️ Назад", callback_data="admin:menu"))
-    builder.adjust(2)
-    return builder.as_markup()
-
-
-def get_admin_triggers_kb() -> InlineKeyboardMarkup:
-    builder = InlineKeyboardBuilder()
-    builder.add(
-        InlineKeyboardButton(text="➕ Добавить триггер", callback_data="admin:triggers:add"),
-        InlineKeyboardButton(text="📋 Список триггеров", callback_data="admin:triggers:list")
-    )
-    builder.add(InlineKeyboardButton(text="⬅️ Назад", callback_data="admin:menu"))
-    builder.adjust(2)
-    return builder.as_markup()
-
-
-def get_admin_broadcast_kb() -> InlineKeyboardMarkup:
-    builder = InlineKeyboardBuilder()
-    builder.add(
-        InlineKeyboardButton(text="✍️ Обычная рассылка", callback_data="admin:broadcast:manual"),
-        InlineKeyboardButton(text="📨 Переслать сообщение", callback_data="admin:broadcast:forward")
-    )
-    builder.add(
-        InlineKeyboardButton(text="🎥 Новое видео", callback_data="admin:broadcast:video")
-    )
-    builder.add(InlineKeyboardButton(text="⬅️ Назад", callback_data="admin:menu"))
-    builder.adjust(2)
-    return builder.as_markup()
-
-
-def get_admin_stats_kb() -> InlineKeyboardMarkup:
-    builder = InlineKeyboardBuilder()
-    builder.add(
-        InlineKeyboardButton(text="👥 Пользователи", callback_data="admin:stats:users"),
-        InlineKeyboardButton(text="💬 Сообщения", callback_data="admin:stats:messages")
-    )
-    builder.add(
-        InlineKeyboardButton(text="📚 Книги", callback_data="admin:stats:books"),
-        InlineKeyboardButton(text="📈 Активность", callback_data="admin:stats:activity")
-    )
-    builder.add(InlineKeyboardButton(text="⬅️ Назад", callback_data="admin:menu"))
-    builder.adjust(2)
-    return builder.as_markup()
-
-
-def get_admin_moderation_kb() -> InlineKeyboardMarkup:
-    builder = InlineKeyboardBuilder()
-    builder.add(
-        InlineKeyboardButton(text="⚠️ Предупреждение", callback_data="admin:warn"),
-        InlineKeyboardButton(text="🔇 Мут", callback_data="admin:mute")
-    )
-    builder.add(
-        InlineKeyboardButton(text="🔊 Размут", callback_data="admin:unmute"),
-        InlineKeyboardButton(text="🚫 Бан", callback_data="admin:ban")
-    )
-    builder.add(
-        InlineKeyboardButton(text="✅ Разбан", callback_data="admin:unban"),
-        InlineKeyboardButton(text="📄 История", callback_data="admin:history")
-    )
-    builder.add(InlineKeyboardButton(text="⬅️ Назад", callback_data="admin:menu"))
-    builder.adjust(2)
+    builder.adjust(1)
     return builder.as_markup()
 
 
 def get_admin_donators_kb() -> InlineKeyboardMarkup:
+    """Меню управления донатерами (админ)"""
     builder = InlineKeyboardBuilder()
     builder.add(
-        InlineKeyboardButton(text="➕ Добавить друга проекта", callback_data="admin:donators:add"),
-        InlineKeyboardButton(text="🗑 Удалить друга проекта", callback_data="admin:donators:remove")
+        InlineKeyboardButton(text=texts.ADD_DONATOR_BUTTON, callback_data="admin:donator:add")
     )
-    builder.add(InlineKeyboardButton(text="⬅️ Назад", callback_data="admin:menu"))
-    builder.adjust(2)
-    return builder.as_markup()
-
-
-def get_admin_logs_kb() -> InlineKeyboardMarkup:
-    builder = InlineKeyboardBuilder()
-    builder.add(InlineKeyboardButton(text="⬅️ Назад", callback_data="admin:menu"))
+    builder.add(
+        InlineKeyboardButton(text=texts.DELETE_DONATOR_BUTTON, callback_data="admin:donator:delete")
+    )
+    builder.add(
+        InlineKeyboardButton(text=texts.BACK_BUTTON, callback_data="back:admin")
+    )
     builder.adjust(1)
     return builder.as_markup()
 
 
-def get_confirm_kb(action: str = None) -> InlineKeyboardMarkup:
-    """Клавиатура подтверждения"""
+def get_admin_delete_donators_kb(donators: list) -> InlineKeyboardMarkup:
+    """Список донатеров для удаления (админ)"""
     builder = InlineKeyboardBuilder()
-    
-    if action:
-        confirm_callback = f"confirm_{action}"
-    else:
-        confirm_callback = "confirm"
-    
+    for donator in donators:
+        if donator.get('username'):
+            text = f"🐾 {donator['name']} (@{donator['username']})"
+        else:
+            text = f"🐾 {donator['name']}"
+        builder.add(
+            InlineKeyboardButton(
+                text=text,
+                callback_data=f"admin:donator:delete:{donator['id']}"
+            )
+        )
     builder.add(
-        InlineKeyboardButton(text="✅ Да", callback_data=confirm_callback),
-        InlineKeyboardButton(text="❌ Нет", callback_data="cancel")
+        InlineKeyboardButton(text=texts.BACK_BUTTON, callback_data="back:admin:donators")
     )
-    builder.adjust(2)
+    builder.adjust(1)
+    return builder.as_markup()
+
+
+def get_stats_kb() -> InlineKeyboardMarkup:
+    """Статистика"""
+    return get_back_kb("back:admin")
+
+
+def get_back_kb(callback_data: str) -> InlineKeyboardMarkup:
+    """Универсальная кнопка назад"""
+    builder = InlineKeyboardBuilder()
+    builder.add(
+        InlineKeyboardButton(text=texts.BACK_BUTTON, callback_data=callback_data)
+    )
+    builder.adjust(1)
     return builder.as_markup()
 
 
 def get_cancel_kb() -> InlineKeyboardMarkup:
+    """Отмена (для FSM)"""
     builder = InlineKeyboardBuilder()
-    builder.add(InlineKeyboardButton(text="❌ Отмена", callback_data="cancel"))
+    builder.add(
+        InlineKeyboardButton(text=texts.CANCEL_BUTTON, callback_data="action:cancel")
+    )
     builder.adjust(1)
     return builder.as_markup()
