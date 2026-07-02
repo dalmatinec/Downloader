@@ -228,10 +228,17 @@ def get_admin_logs_kb() -> InlineKeyboardMarkup:
     return builder.as_markup()
 
 
-def get_confirm_kb() -> InlineKeyboardMarkup:
+def get_confirm_kb(action: str = None) -> InlineKeyboardMarkup:
+    """Клавиатура подтверждения"""
     builder = InlineKeyboardBuilder()
+    
+    if action:
+        confirm_callback = f"confirm_{action}"
+    else:
+        confirm_callback = "confirm"
+    
     builder.add(
-        InlineKeyboardButton(text="✅ Да", callback_data="confirm"),
+        InlineKeyboardButton(text="✅ Да", callback_data=confirm_callback),
         InlineKeyboardButton(text="❌ Нет", callback_data="cancel")
     )
     builder.adjust(2)
