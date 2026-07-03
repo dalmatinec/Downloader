@@ -51,8 +51,19 @@ async def send_broadcast(
         except TelegramRetryAfter as e:
             logger.warning(f"Retry after {e.retry_after}s for user {user_id}")
             await asyncio.sleep(e.retry_after)
-            sent += 1
-            await asyncio.sleep(0.05)
+            try:
+                await admin_message.copy_to(
+                    chat_id=user_id,
+                    reply_markup=None
+                )
+                sent += 1
+                await asyncio.sleep(0.05)
+            except Exception as e2:
+                error = str(e2).lower()
+                if "blocked" in error or "bot was blocked" in error:
+                    await db.set_blocked(user_id, True)
+                failed += 1
+                logger.error(f"Send broadcast retry failed for {user_id}: {e2}")
         except Exception as e:
             error = str(e).lower()
             if "blocked" in error or "bot was blocked" in error:
@@ -101,8 +112,18 @@ async def forward_broadcast(
         except TelegramRetryAfter as e:
             logger.warning(f"Retry after {e.retry_after}s for user {user_id}")
             await asyncio.sleep(e.retry_after)
-            sent += 1
-            await asyncio.sleep(0.05)
+            try:
+                await admin_message.forward(
+                    chat_id=user_id
+                )
+                sent += 1
+                await asyncio.sleep(0.05)
+            except Exception as e2:
+                error = str(e2).lower()
+                if "blocked" in error or "bot was blocked" in error:
+                    await db.set_blocked(user_id, True)
+                failed += 1
+                logger.error(f"Forward broadcast retry failed for {user_id}: {e2}")
         except Exception as e:
             error = str(e).lower()
             if "blocked" in error or "bot was blocked" in error:
@@ -165,8 +186,22 @@ async def video_broadcast(
         except TelegramRetryAfter as e:
             logger.warning(f"Retry after {e.retry_after}s for user {user_id}")
             await asyncio.sleep(e.retry_after)
-            sent += 1
-            await asyncio.sleep(0.05)
+            try:
+                await bot.send_message(
+                    chat_id=user_id,
+                    text=text,
+                    parse_mode="HTML",
+                    reply_markup=keyboard,
+                    disable_web_page_preview=False
+                )
+                sent += 1
+                await asyncio.sleep(0.05)
+            except Exception as e2:
+                error = str(e2).lower()
+                if "blocked" in error or "bot was blocked" in error:
+                    await db.set_blocked(user_id, True)
+                failed += 1
+                logger.error(f"Video broadcast retry failed for {user_id}: {e2}")
         except Exception as e:
             error = str(e).lower()
             if "blocked" in error or "bot was blocked" in error:
