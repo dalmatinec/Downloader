@@ -8,7 +8,7 @@ from aiogram.utils.keyboard import InlineKeyboardBuilder
 
 import config
 import texts
-from utils import safe_send_message, log_action
+from utils import safe_send_message
 
 
 logger = logging.getLogger(__name__)
