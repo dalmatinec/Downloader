@@ -30,8 +30,6 @@ async def set_bot_commands(bot: Bot) -> None:
     """Установка команд для меню бота"""
     commands = [
         BotCommand(command="start", description="Главное меню"),
-        BotCommand(command="admin", description="Админ-панель"),
-        BotCommand(command="help", description="Справка по командам"),
         BotCommand(command="cancel", description="Отмена действия"),
     ]
     await bot.set_my_commands(commands, scope=BotCommandScopeDefault())
@@ -40,12 +38,12 @@ async def set_bot_commands(bot: Bot) -> None:
 async def main() -> None:
     """Главная функция запуска бота"""
     logger.info("🐱 Запускаем бота Кеша...")
-    
+
     # Инициализация базы данных
     db = Database()
     await db.init_db()
     logger.info("✅ База данных готова")
-    
+
     # Создание бота и диспетчера
     bot = Bot(
         token=config.BOT_TOKEN,
@@ -53,22 +51,23 @@ async def main() -> None:
     )
     storage = MemoryStorage()
     dp = Dispatcher(storage=storage)
-    
+
     # Установка команд
     await set_bot_commands(bot)
     logger.info("✅ Команды бота установлены")
-    
+
     # Регистрация всех обработчиков
     register_handlers(dp)
     register_trigger_handlers(dp)
     logger.info("✅ Все обработчики зарегистрированы")
 
-# В функции main(), после создания bot:
-asyncio.create_task(ai_loop(bot))
-    
+    # Запуск AI-цикла в фоне
+    asyncio.create_task(ai_loop(bot))
+    logger.info("✅ AI-цикл запущен")
+
     # Запуск поллинга
     logger.info("✅ Бот готов к работе!")
-    
+
     try:
         await dp.start_polling(bot)
     except Exception as e:
