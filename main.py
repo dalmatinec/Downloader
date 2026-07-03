@@ -2,6 +2,7 @@ import asyncio
 import logging
 import sys
 
+from ai import ai_loop
 from aiogram import Bot, Dispatcher
 from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
@@ -61,6 +62,9 @@ async def main() -> None:
     register_handlers(dp)
     register_trigger_handlers(dp)
     logger.info("✅ Все обработчики зарегистрированы")
+
+# В функции main(), после создания bot:
+asyncio.create_task(ai_loop(bot))
     
     # Запуск поллинга
     logger.info("✅ Бот готов к работе!")
