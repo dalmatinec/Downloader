@@ -988,6 +988,230 @@ async def video_confirm(callback: CallbackQuery, state: FSMContext) -> None:
     await state.clear()
     await callback.answer()
 
+# ---------- АДМИН: РАССЫЛКИ ----------
+async def send_command(message: Message, state: FSMContext) -> None:
+    """Начало обычной рассылки"""
+    if not await is_admin(message.from_user.id):
+        return
+    
+    await state.set_state(AdminStates.waiting_send_message)
+    await safe_send_message(
+        bot=message.bot,
+        chat_id=message.chat.id,
+        text=texts.SEND_PROMPT,
+        reply_markup=get_cancel_kb()
+    )
+
+
+async def send_receive_message(message: Message, state: FSMContext) -> None:
+    """Получение сообщения для рассылки"""
+    if not await is_admin(message.from_user.id):
+        return
+    
+    await state.update_data(send_message=message)
+    await state.set_state(AdminStates.waiting_confirm)
+    
+    await safe_send_message(
+        bot=message.bot,
+        chat_id=message.chat.id,
+        text=texts.SEND_CONFIRM,
+        reply_markup=get_confirm_kb("send")
+    )
+
+
+async def send_confirm(callback: CallbackQuery, state: FSMContext) -> None:
+    """Подтверждение обычной рассылки"""
+    if not await is_admin(callback.from_user.id):
+        await callback.answer()
+        return
+    
+    data = await state.get_data()
+    admin_message = data.get('send_message')
+    
+    if not admin_message:
+        await callback.answer(texts.ERROR_MESSAGE_NOT_FOUND)
+        await state.clear()
+        return
+    
+    await safe_edit_message(
+        bot=callback.bot,
+        callback=callback,
+        text=texts.SEND_STARTED,
+        reply_markup=None
+    )
+    
+    result = await send_broadcast(
+        bot=callback.bot,
+        db=db,
+        admin_message=admin_message
+    )
+    
+    await safe_edit_message(
+        bot=callback.bot,
+        callback=callback,
+        text=texts.SEND_FINISHED.format(
+            total=result['total'],
+            sent=result['sent'],
+            failed=result['failed']
+        ),
+        reply_markup=get_back_kb("back:admin")
+    )
+    await state.clear()
+    await callback.answer()
+
+
+async def forward_command(message: Message, state: FSMContext) -> None:
+    """Начало пересылки"""
+    if not await is_admin(message.from_user.id):
+        return
+    
+    await state.set_state(AdminStates.waiting_forward_message)
+    await safe_send_message(
+        bot=message.bot,
+        chat_id=message.chat.id,
+        text=texts.FORWARD_PROMPT,
+        reply_markup=get_cancel_kb()
+    )
+
+
+async def forward_receive_message(message: Message, state: FSMContext) -> None:
+    """Получение сообщения для пересылки"""
+    if not await is_admin(message.from_user.id):
+        return
+    
+    await state.update_data(forward_message=message)
+    await state.set_state(AdminStates.waiting_confirm)
+    
+    await safe_send_message(
+        bot=message.bot,
+        chat_id=message.chat.id,
+        text=texts.FORWARD_CONFIRM,
+        reply_markup=get_confirm_kb("forward")
+    )
+
+
+async def forward_confirm(callback: CallbackQuery, state: FSMContext) -> None:
+    """Подтверждение пересылки"""
+    if not await is_admin(callback.from_user.id):
+        await callback.answer()
+        return
+    
+    data = await state.get_data()
+    admin_message = data.get('forward_message')
+    
+    if not admin_message:
+        await callback.answer(texts.ERROR_MESSAGE_NOT_FOUND)
+        await state.clear()
+        return
+    
+    await safe_edit_message(
+        bot=callback.bot,
+        callback=callback,
+        text=texts.FORWARD_STARTED,
+        reply_markup=None
+    )
+    
+    result = await forward_broadcast(
+        bot=callback.bot,
+        db=db,
+        admin_message=admin_message
+    )
+    
+    await safe_edit_message(
+        bot=callback.bot,
+        callback=callback,
+        text=texts.FORWARD_FINISHED.format(
+            total=result['total'],
+            sent=result['sent'],
+            failed=result['failed']
+        ),
+        reply_markup=get_back_kb("back:admin")
+    )
+    await state.clear()
+    await callback.answer()
+
+
+async def video_command(message: Message, state: FSMContext) -> None:
+    """Начало видео-рассылки"""
+    if not await is_admin(message.from_user.id):
+        return
+    
+    await state.set_state(AdminStates.waiting_video_url)
+    await safe_send_message(
+        bot=message.bot,
+        chat_id=message.chat.id,
+        text=texts.VIDEO_PROMPT,
+        reply_markup=get_cancel_kb()
+    )
+
+
+async def video_receive_url(message: Message, state: FSMContext) -> None:
+    """Получение ссылки на видео"""
+    if not await is_admin(message.from_user.id):
+        return
+    
+    url = message.text.strip()
+    
+    if not re.match(r'^https?://(www\.)?(youtube\.com|youtu\.be)/[^\s]+$', url):
+        await safe_send_message(
+            bot=message.bot,
+            chat_id=message.chat.id,
+            text=texts.VIDEO_INVALID_URL,
+            reply_markup=get_cancel_kb()
+        )
+        return
+    
+    await state.update_data(video_url=url)
+    await state.set_state(AdminStates.waiting_confirm)
+    
+    await safe_send_message(
+        bot=message.bot,
+        chat_id=message.chat.id,
+        text=texts.VIDEO_CONFIRM.format(url=url),
+        reply_markup=get_confirm_kb("video")
+    )
+
+
+async def video_confirm(callback: CallbackQuery, state: FSMContext) -> None:
+    """Подтверждение видео-рассылки"""
+    if not await is_admin(callback.from_user.id):
+        await callback.answer()
+        return
+    
+    data = await state.get_data()
+    video_url = data.get('video_url')
+    
+    if not video_url:
+        await callback.answer(texts.ERROR_URL_NOT_FOUND)
+        await state.clear()
+        return
+    
+    await safe_edit_message(
+        bot=callback.bot,
+        callback=callback,
+        text=texts.VIDEO_STARTED,
+        reply_markup=None
+    )
+    
+    result = await video_broadcast(
+        bot=callback.bot,
+        db=db,
+        video_url=video_url
+    )
+    
+    await safe_edit_message(
+        bot=callback.bot,
+        callback=callback,
+        text=texts.VIDEO_FINISHED.format(
+            total=result['total'],
+            sent=result['sent'],
+            failed=result['failed']
+        ),
+        reply_markup=get_back_kb("back:admin")
+    )
+    await state.clear()
+    await callback.answer()
+
 
 # ---------- АДМИН: ДОБАВЛЕНИЕ/УДАЛЕНИЕ АДМИНА ----------
 async def add_admin_command(message: Message, state: FSMContext) -> None:
@@ -1115,9 +1339,31 @@ async def del_admin_receive_id(message: Message, state: FSMContext) -> None:
     await state.clear()
 
 
-# ---------- ОТМЕНА ----------
+# ---------- /CANCEL ----------
+async def cancel_command(message: Message, state: FSMContext) -> None:
+    """Отмена текущего действия через команду /cancel"""
+    current_state = await state.get_state()
+    
+    if current_state is None:
+        await safe_send_message(
+            bot=message.bot,
+            chat_id=message.chat.id,
+            text=texts.CANCEL_ACTION
+        )
+        return
+    
+    await state.clear()
+    await safe_send_message(
+        bot=message.bot,
+        chat_id=message.chat.id,
+        text=texts.CANCEL_ACTION,
+        reply_markup=get_back_kb("back:main")
+    )
+
+
+# ---------- ОТМЕНА (callback) ----------
 async def cancel_action(callback: CallbackQuery, state: FSMContext) -> None:
-    """Отмена действия"""
+    """Отмена действия через callback"""
     await state.clear()
     await safe_delete_message(
         bot=callback.bot,
@@ -1165,6 +1411,9 @@ def register_handlers(dp: Dispatcher) -> None:
     
     # Пользовательские команды
     dp.message.register(start_command, Command("start"))
+    
+    # Отмена (команда и callback)
+    dp.message.register(cancel_command, Command("cancel"))
     
     # Пользовательские callback
     dp.callback_query.register(main_menu, F.data == "back:main")
