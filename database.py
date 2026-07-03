@@ -1,6 +1,8 @@
 import aiosqlite
 from typing import Optional, List, Dict, Any
 
+import config
+
 
 class Database:
     def __init__(self):
@@ -53,6 +55,20 @@ class Database:
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 )
             ''')
+
+            # Администраторы
+            await db.execute('''
+                CREATE TABLE IF NOT EXISTS admins (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    telegram_id INTEGER UNIQUE NOT NULL
+                )
+            ''')
+
+            # Автоматическое добавление суперадмина из config
+            await db.execute(
+                "INSERT OR IGNORE INTO admins (telegram_id) VALUES (?)",
+                (config.ADMIN_ID,)
+            )
 
             await db.commit()
 
@@ -193,6 +209,13 @@ class Database:
             return row[0] if row else 0
 
     # === DONATORS ===
+    async def get_donator(self, donator_id: int) -> Optional[Dict[str, Any]]:
+        async with aiosqlite.connect(self.db_name) as db:
+            db.row_factory = aiosqlite.Row
+            cursor = await db.execute("SELECT * FROM donators WHERE id = ?", (donator_id,))
+            row = await cursor.fetchone()
+            return dict(row) if row else None
+
     async def get_all_donators(self) -> List[Dict[str, Any]]:
         async with aiosqlite.connect(self.db_name) as db:
             db.row_factory = aiosqlite.Row
@@ -222,3 +245,44 @@ class Database:
                 (broadcast_type, sent, failed)
             )
             await db.commit()
+
+    # === ADMINS ===
+    async def get_admin(self, telegram_id: int) -> Optional[Dict[str, Any]]:
+        async with aiosqlite.connect(self.db_name) as db:
+            db.row_factory = aiosqlite.Row
+            cursor = await db.execute("SELECT * FROM admins WHERE telegram_id = ?", (telegram_id,))
+            row = await cursor.fetchone()
+            return dict(row) if row else None
+
+    async def get_all_admins(self) -> List[Dict[str, Any]]:
+        async with aiosqlite.connect(self.db_name) as db:
+            db.row_factory = aiosqlite.Row
+            cursor = await db.execute("SELECT * FROM admins")
+            rows = await cursor.fetchall()
+            return [dict(row) for row in rows]
+
+    async def add_admin(self, telegram_id: int) -> None:
+        async with aiosqlite.connect(self.db_name) as db:
+            await db.execute(
+                "INSERT OR IGNORE INTO admins (telegram_id) VALUES (?)",
+                (telegram_id,)
+            )
+            await db.commit()
+
+    async def delete_admin(self, telegram_id: int) -> None:
+        async with aiosqlite.connect(self.db_name) as db:
+            await db.execute("DELETE FROM admins WHERE telegram_id = ?", (telegram_id,))
+            await db.commit()
+
+    # === STATS ===
+    async def get_stats(self) -> Dict[str, Any]:
+        """Получение полной статистики"""
+        return {
+            'users': await self.get_users_count(),
+            'blocked': await self.get_blocked_count(),
+            'books': await self.get_books_count(),
+            'downloads': await self.get_total_downloads(),
+            'today': await self.get_today_users_count(),
+            'week': await self.get_week_users_count(),
+            'month': await self.get_month_users_count()
+        }
