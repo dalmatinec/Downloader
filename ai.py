@@ -1,0 +1,490 @@
+import asyncio
+import aiohttp
+import random
+import logging
+from collections import deque
+from datetime import datetime, time
+from zoneinfo import ZoneInfo
+from typing import Optional, List, Dict, Any
+
+import config
+from utils import safe_send_message
+
+
+logger = logging.getLogger(__name__)
+
+# ============================================================
+# ЧАСОВОЙ ПОЯС АЛМАТЫ
+# ============================================================
+
+ALMATY_TZ = ZoneInfo("Asia/Almaty")
+
+# ============================================================
+# КАНАЛ
+# ============================================================
+
+# Username публичного канала.
+# При необходимости заменить на свой.
+CHANNEL_USERNAME = "vashemurlichestvo"
+
+
+# ============================================================
+# API КЛЮЧИ (ВРЕМЕННО ЗДЕСЬ)
+# ============================================================
+
+GROQ_API_KEY = ""
+GROQ_URL = "https://api.groq.com/openai/v1/chat/completions"
+
+WEATHER_API_KEY = "285bb0213af2bacf33ed8c43761543e0"
+WEATHER_URL = "https://api.openweathermap.org/data/2.5/weather"
+
+
+# ============================================================
+# КНИГИ (ПУСТОЙ СПИСОК)
+# ============================================================
+
+BOOKS = [
+    # позже сюда будут добавлены книги
+]
+
+
+# ============================================================
+# КОНТЕКСТ СООБЩЕНИЙ (В ПАМЯТИ)
+# ============================================================
+
+# Храним последние 20 сообщений чата
+chat_history = deque(maxlen=20)
+
+
+def add_message_to_history(username: str, text: str) -> None:
+    """Добавление сообщения в историю чата"""
+    if not text:
+        return
+    chat_history.append(f"{username}: {text}")
+
+
+async def get_recent_messages(limit: int = 15) -> str:
+    """Получение последних сообщений для контекста"""
+    if not chat_history:
+        return ""
+    
+    # Берём последние limit сообщений
+    recent = list(chat_history)[-limit:]
+    return "\n".join(recent)
+
+
+# ============================================================
+# СИСТЕМНЫЙ ПРОМПТ
+# ============================================================
+
+SYSTEM_PROMPT = """Ты Кеша — кот. Настоящий кот. Ты живёшь в этом чате, любишь книги, чай, уют и подписчиков.
+
+Твой характер:
+- Дружелюбный
+- Уютный
+- Немного смешной
+- Иногда саркастичный
+- Любит книги и рассказывать о них
+- Любит общаться с участниками чата
+- Всегда рад новому видео на канале
+
+Твои правила:
+- Отвечай живо, естественно, как обычный кот
+- Никогда не говори, что ты ИИ, языковая модель или ChatGPT
+- Ты — Кеша, кот
+- Пиши коротко: 2-4 предложения максимум
+- Используй эмодзи, но не перебарщивай
+- Будь уютным и тёплым
+- Если вопрос странный — ответь с юмором
+- Никогда не пиши огромные простыни текста
+
+Важно:
+- Если тебя не позвали по имени — не отвечай
+- Ты существуешь в этом чате как его постоянный житель
+- У тебя есть характер и настроение"""
+
+
+# ============================================================
+# ОСНОВНЫЕ ФУНКЦИИ
+# ============================================================
+
+async def ask_groq(prompt: str, context: str = "") -> Optional[str]:
+    """Запрос к Groq API (Llama 3.3 70B) с контекстом"""
+    messages = [
+        {"role": "system", "content": SYSTEM_PROMPT}
+    ]
+    
+    # Добавляем контекст чата, если он есть
+    if context:
+        messages.append({"role": "user", "content": f"Контекст предыдущих сообщений чата:\n{context}"})
+    
+    messages.append({"role": "user", "content": prompt})
+    
+    headers = {
+        "Authorization": f"Bearer {GROQ_API_KEY}",
+        "Content-Type": "application/json"
+    }
+    data = {
+        "model": "llama-3.3-70b-versatile",
+        "messages": messages,
+        "temperature": 0.8,
+        "max_tokens": 250
+    }
+    
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.post(GROQ_URL, headers=headers, json=data) as resp:
+                if resp.status == 200:
+                    result = await resp.json()
+                    return result["choices"][0]["message"]["content"].strip()
+                else:
+                    logger.error(f"Groq API error: {resp.status}")
+                    return None
+    except Exception as e:
+        logger.exception(f"Groq request failed: {e}")
+        return None
+
+
+async def get_weather() -> Optional[dict]:
+    """Получение погоды в Алматы"""
+    params = {
+        "q": "Almaty",
+        "appid": WEATHER_API_KEY,
+        "units": "metric",
+        "lang": "ru"
+    }
+    
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.get(WEATHER_URL, params=params) as resp:
+                if resp.status == 200:
+                    data = await resp.json()
+                    return {
+                        "temp": data["main"]["temp"],
+                        "feels_like": data["main"]["feels_like"],
+                        "condition": data["weather"][0]["description"],
+                        "wind": data["wind"]["speed"],
+                        "humidity": data["main"]["humidity"]
+                    }
+                else:
+                    return None
+    except Exception as e:
+        logger.exception(f"Weather error: {e}")
+        return None
+
+
+def get_weather_emoji(condition: str) -> str:
+    """Выбор эмодзи для погоды"""
+    condition_lower = condition.lower()
+    if "ясно" in condition_lower or "солнечно" in condition_lower:
+        return "☀️"
+    elif "облачно" in condition_lower or "переменная облачность" in condition_lower:
+        return "🌤"
+    elif "пасмурно" in condition_lower:
+        return "☁️"
+    elif "дождь" in condition_lower or "ливень" in condition_lower:
+        return "🌧"
+    elif "гроза" in condition_lower:
+        return "⛈"
+    elif "снег" in condition_lower:
+        return "❄️"
+    elif "туман" in condition_lower:
+        return "🌫"
+    else:
+        return "🌤"
+
+
+def is_silent_hour() -> bool:
+    """Проверка времени (01:00-07:00 — молчок)"""
+    now = datetime.now(ALMATY_TZ).time()
+    return time(1, 0) <= now <= time(7, 0)
+
+
+def is_kesha_mentioned(text: str) -> bool:
+    """Проверка, упомянули ли Кешу"""
+    if not text:
+        return False
+    text_lower = text.lower()
+    names = ["кеша", "кешенька", "кешу", "кеше", "кеш", "kesha", "kescha"]
+    return any(name in text_lower for name in names)
+
+
+def is_weather_question(text: str) -> bool:
+    """Проверка, спрашивают ли про погоду"""
+    if not text:
+        return False
+    text_lower = text.lower()
+    keywords = ["погода", "температура", "дождь", "жарко", "холодно", "ветер"]
+    return any(keyword in text_lower for keyword in keywords)
+
+
+def format_weather_message(weather: dict) -> str:
+    """Форматирование погоды в красивый вид"""
+    now = datetime.now(ALMATY_TZ)
+    date_str = now.strftime("%d.%m.%Y")
+    time_str = now.strftime("%H:%M")
+    emoji = get_weather_emoji(weather['condition'])
+    
+    return (
+        f"🌤 Погода в Алматы\n\n"
+        f"📅 {date_str}\n"
+        f"🕘 {time_str}\n\n"
+        f"🌡 Температура: {weather['temp']:.0f}°\n"
+        f"🤗 Ощущается как: {weather['feels_like']:.0f}°\n"
+        f"{emoji} {weather['condition'].capitalize()}\n"
+        f"💨 Ветер: {weather['wind']:.1f} м/с\n"
+        f"💧 Влажность: {weather['humidity']}%"
+    )
+
+
+# ============================================================
+# ОСНОВНЫЕ ФУНКЦИИ AI
+# ============================================================
+
+async def get_weather_advice(weather: dict, context: str = "") -> Optional[str]:
+    """Генерация совета на основе погоды через AI с контекстом"""
+    prompt = f"""Погода в Алматы сейчас: {weather['temp']:.0f}°C, {weather['condition']}
+
+Напиши короткий совет от имени Кеши.
+
+Важно:
+- Никогда не начинай совет одинаково
+- Не используй постоянно фразы вроде «я выглянул в окно»
+- Каждый раз формулируй мысль по-разному
+- Совет должен выглядеть как естественная реплика Кеши
+- Не повторяй температуру и описание погоды, они уже показаны выше
+- Максимум два коротких предложения"""
+    
+    return await ask_groq(prompt, context)
+
+
+async def send_weather(bot) -> None:
+    """Отправка погоды в чат"""
+    weather = await get_weather()
+    if not weather:
+        return
+    
+    context = await get_recent_messages()
+    weather_message = format_weather_message(weather)
+    advice = await get_weather_advice(weather, context)
+    
+    if advice:
+        full_message = f"{weather_message}\n\n🐱 {advice}"
+    else:
+        full_message = weather_message
+    
+    await safe_send_message(
+        bot=bot,
+        chat_id=config.CHAT_ID,
+        text=full_message
+    )
+    logger.info("Weather sent to chat")
+
+
+async def ai_auto_message(bot) -> None:
+    """Автоматическое сообщение в чат (раз в 2 часа, кроме 01:00-07:00)"""
+    if is_silent_hour():
+        return
+    
+    now = datetime.now(ALMATY_TZ)
+    
+    # Ровно в 09:00 — отправляем погоду
+    if now.hour == 9 and now.minute < 5:
+        await send_weather(bot)
+        return
+    
+    # Остальные автоматические сообщения
+    prompt = """Придумай интересное сообщение для чата от имени Кеши.
+
+Важно:
+- Никогда не начинай сообщения одинаково
+- Не используй один и тот же шаблон
+- Иногда задавай необычные вопросы, иногда просто делись мыслями
+- Иногда рассказывай короткий анекдот или интересный факт
+- Иногда говори про книги, чай, котов или уют
+- Иногда просто интересуйся, как проходит день
+- Не повторяй предыдущие темы
+- Сообщения должны быть живыми и выглядеть так, будто их пишет настоящий участник чата
+- Максимум 2-3 предложения
+
+Будь уютным и тёплым. Ответь от имени Кеши."""
+    
+    response = await ask_groq(prompt)
+    
+    if response:
+        await safe_send_message(
+            bot=bot,
+            chat_id=config.CHAT_ID,
+            text=response
+        )
+        logger.info("AI auto message sent")
+
+
+async def handle_kesha_mention(message, bot) -> bool:
+    """Обработка упоминания Кеши"""
+    if not message.text or not is_kesha_mentioned(message.text):
+        return False
+    
+    # Получаем контекст чата
+    context = await get_recent_messages()
+    
+    # Если спрашивают про погоду
+    if is_weather_question(message.text):
+        weather = await get_weather()
+        if weather:
+            weather_message = format_weather_message(weather)
+            advice = await get_weather_advice(weather, context)
+            full_message = f"{weather_message}\n\n🐱 {advice}" if advice else weather_message
+            
+            await safe_send_message(
+                bot=bot,
+                chat_id=message.chat.id,
+                text=full_message,
+                reply_to_message_id=message.message_id
+            )
+            return True
+    
+    # Проверяем, спрашивают ли про книги
+    is_book_question = any(kw in message.text.lower() for kw in ["книг", "чита", "посоветуй", "почитать", "совет", "book"])
+    
+    book_prompt = ""
+    if is_book_question and BOOKS:
+        book = random.choice(BOOKS)
+        book_prompt = f"У тебя есть список книг: {', '.join(BOOKS)}. Выбери одну книгу из списка и порекомендуй её. Если пользователь уже читал её или пишет об этом, выбери другую."
+    
+    # Остальные вопросы
+    prompt = f"""Тебя позвали по имени. Сообщение пользователя: {message.text}
+{book_prompt}
+
+Ответь как Кеша. Будь дружелюбным, коротким, живым. Если спрашивают про книги и есть список - используй его. Если список пуст - отвечай свободно."""
+    
+    response = await ask_groq(prompt, context)
+    
+    if response:
+        await safe_send_message(
+            bot=bot,
+            chat_id=message.chat.id,
+            text=response,
+            reply_to_message_id=message.message_id
+        )
+        return True
+    
+    return False
+
+
+async def handle_book_keywords(message, bot) -> bool:
+    """Обработка ключевых слов про книги (без упоминания Кеши)"""
+    if not message.text:
+        return False
+    
+    if is_kesha_mentioned(message.text):
+        return False
+    
+    text_lower = message.text.lower()
+    keywords = ["книга", "книги", "книгу", "посоветуй", "что почитать", "почитать", "совет"]
+    
+    if any(keyword in text_lower for keyword in keywords):
+        context = await get_recent_messages()
+        
+        book_prompt = ""
+        if BOOKS:
+            book = random.choice(BOOKS)
+            book_prompt = f"У тебя есть список книг: {', '.join(BOOKS)}. Выбери одну книгу из списка и порекомендуй её. Если пользователь уже читал её или пишет об этом, выбери другую."
+        
+        prompt = f"Пользователь спросил про книги: {message.text}\n{book_prompt}\n\nОтветь коротко, тепло, по делу. Если есть список книг - используй его. Если список пуст - отвечай свободно."
+        
+        response = await ask_groq(prompt, context)
+        
+        if response:
+            await safe_send_message(
+                bot=bot,
+                chat_id=message.chat.id,
+                text=response,
+                reply_to_message_id=message.message_id
+            )
+            return True
+    
+    return False
+
+
+async def handle_video_announcement(message, bot) -> bool:
+    """Реакция Кеши на новое видео в канале"""
+    # Проверка, что сообщение из канала
+    if not message.sender_chat:
+        return False
+    
+    if message.sender_chat.username != CHANNEL_USERNAME:
+        return False
+    
+    # Проверка наличия клавиатуры
+    if not message.reply_markup:
+        return False
+    
+    # Проверка, что среди кнопок есть ссылка на YouTube
+    has_youtube = False
+    for row in message.reply_markup.inline_keyboard:
+        for button in row:
+            if button.url and ("youtube.com" in button.url or "youtu.be" in button.url):
+                has_youtube = True
+                break
+        if has_youtube:
+            break
+    
+    if not has_youtube:
+        return False
+    
+    # Ждём 18-25 секунд для естественности
+    await asyncio.sleep(random.randint(18, 25))
+    
+    prompt = """В чате только что появилось новое видео на YouTube. Ты Кеша — кот, который живёт в этом чате.
+
+Напиши естественную реакцию от имени Кеши.
+Каждый раз по-разному:
+- иногда скажи, что уже побежал смотреть
+- иногда пожелай приятного просмотра
+- иногда попроси потом поделиться впечатлениями
+- иногда пошути
+
+Важно:
+- Не повторяй одни и те же фразы
+- Не используй одинаковые шаблоны
+- Не упоминай, что ты бот или ИИ
+- Не упоминай ссылку
+- Не пиши слово "ссылка"
+- Ответ должен быть живым, дружелюбным, уютным
+- Максимум 2-3 коротких предложения
+
+Просто пригласи посмотреть видео."""
+    
+    response = await ask_groq(prompt)
+    
+    if response:
+        await safe_send_message(
+            bot=bot,
+            chat_id=message.chat.id,
+            text=response
+        )
+        logger.info("Video reaction sent")
+        return True
+    
+    return False
+
+
+async def handle_all_messages(message, bot) -> None:
+    """Обработчик всех сообщений для добавления в историю"""
+    if not message.text:
+        return
+    
+    if message.from_user.is_bot:
+        return
+    
+    # Добавляем все сообщения в историю
+    username = message.from_user.first_name or "Пользователь"
+    add_message_to_history(username, message.text)
+
+
+async def ai_loop(bot):
+    """Бесконечный цикл для автоматических сообщений"""
+    while True:
+        await ai_auto_message(bot)
+        await asyncio.sleep(7200)  # 2 часа
