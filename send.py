@@ -34,11 +34,11 @@ async def send_broadcast(
     users = await db.get_active_users()
     if not users:
         return {"total": 0, "sent": 0, "failed": 0}
-    
+
     total = len(users)
     sent = 0
     failed = 0
-    
+
     for user_data in users:
         user_id = user_data['telegram_id']
         try:
@@ -70,10 +70,10 @@ async def send_broadcast(
                 await db.set_blocked(user_id, True)
             failed += 1
             logger.error(f"Send broadcast failed for {user_id}: {e}")
-    
+
     await db.add_broadcast("send", sent, failed)
     logger.info(f"Broadcast completed: sent={sent}, failed={failed}, total={total}")
-    
+
     return {"total": total, "sent": sent, "failed": failed}
 
 
@@ -96,11 +96,11 @@ async def forward_broadcast(
     users = await db.get_active_users()
     if not users:
         return {"total": 0, "sent": 0, "failed": 0}
-    
+
     total = len(users)
     sent = 0
     failed = 0
-    
+
     for user_data in users:
         user_id = user_data['telegram_id']
         try:
@@ -130,10 +130,10 @@ async def forward_broadcast(
                 await db.set_blocked(user_id, True)
             failed += 1
             logger.error(f"Forward broadcast failed for {user_id}: {e}")
-    
+
     await db.add_broadcast("forward", sent, failed)
     logger.info(f"Forward broadcast completed: sent={sent}, failed={failed}, total={total}")
-    
+
     return {"total": total, "sent": sent, "failed": failed}
 
 
@@ -143,7 +143,7 @@ async def video_broadcast(
     video_url: str
 ) -> Dict[str, Any]:
     """
-    Рассылка уведомления о новом видео
+    Рассылка уведомления о новом видео + публикация в канал
     
     Args:
         bot: экземпляр бота
@@ -153,24 +153,40 @@ async def video_broadcast(
     Returns:
         Dict: {total, sent, failed}
     """
-    users = await db.get_active_users()
-    if not users:
-        return {"total": 0, "sent": 0, "failed": 0}
-    
     text = (
-        "🎬 Новое видео уже на канале!\n\n"
-        "👇👇👇\n\n"
-        f'🔥 <a href="{video_url}"><b>СМОТРЕТЬ</b></a>'
+        "🎬 <b>Новое видео уже на канале!</b>\n\n"
+        "Друзья, я снял для вас новый ролик. Надеюсь, он подарит вам тёплые эмоции и хорошее настроение.\n\n"
+        "👇 Нажмите на кнопку ниже, чтобы посмотреть:\n"
+        f'🔥 <a href="{video_url}"><b>СМОТРЕТЬ НА YOUTUBE</b></a>'
     )
-    
+
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="▶️ Смотреть", url=video_url)]
     ])
-    
+
+    # Публикация в канал
+    try:
+        await bot.send_message(
+            chat_id=config.CHANNEL_ID,
+            text=text,
+            parse_mode="HTML",
+            reply_markup=keyboard,
+            disable_web_page_preview=True
+        )
+        logger.info(f"Video announcement sent to channel: {config.CHANNEL_ID}")
+    except Exception as e:
+        logger.exception(f"Failed to send video to channel: {e}")
+
+    # Рассылка пользователям
+    users = await db.get_active_users()
+    if not users:
+        await db.add_broadcast("video", 0, 0)
+        return {"total": 0, "sent": 0, "failed": 0}
+
     total = len(users)
     sent = 0
     failed = 0
-    
+
     for user_data in users:
         user_id = user_data['telegram_id']
         try:
@@ -179,7 +195,7 @@ async def video_broadcast(
                 text=text,
                 parse_mode="HTML",
                 reply_markup=keyboard,
-                disable_web_page_preview=False
+                disable_web_page_preview=True
             )
             sent += 1
             await asyncio.sleep(0.05)
@@ -192,7 +208,7 @@ async def video_broadcast(
                     text=text,
                     parse_mode="HTML",
                     reply_markup=keyboard,
-                    disable_web_page_preview=False
+                    disable_web_page_preview=True
                 )
                 sent += 1
                 await asyncio.sleep(0.05)
@@ -208,8 +224,8 @@ async def video_broadcast(
                 await db.set_blocked(user_id, True)
             failed += 1
             logger.error(f"Video broadcast failed for {user_id}: {e}")
-    
+
     await db.add_broadcast("video", sent, failed)
     logger.info(f"Video broadcast completed: sent={sent}, failed={failed}, total={total}")
-    
+
     return {"total": total, "sent": sent, "failed": failed}
