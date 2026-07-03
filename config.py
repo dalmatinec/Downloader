@@ -1,5 +1,5 @@
 BOT_TOKEN = "8830635134:AAFQLa0Naw4JMLCeElYIQ_rKc8jHQRF4bKA"
-ADMINS = [7982614573]  # Список администраторов
+ADMIN_ID = 7982614573  # Список администраторов
 
 BOT_USERNAME = "@KeshaBot"
 CHANNEL_ID = -1001234567890
