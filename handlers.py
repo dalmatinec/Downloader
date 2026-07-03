@@ -1409,7 +1409,20 @@ async def confirm_callback(callback: CallbackQuery, state: FSMContext) -> None:
 
 def register_handlers(dp: Dispatcher) -> None:
     """Регистрация всех обработчиков"""
-    
+
+
+    # AI — добавление всех сообщений в историю
+    dp.message.register(handle_all_messages)
+
+   # AI — упоминания Кеши
+    dp.message.register(handle_kesha_mention) 
+
+    # AI — ключевые слова про книги
+    dp.message.register(handle_book_keywords)
+
+    # AI — новое видео в канале
+    dp.message.register(handle_video_announcement)
+
     # Пользовательские команды
     dp.message.register(start_command, Command("start"))
     
@@ -1427,19 +1440,6 @@ def register_handlers(dp: Dispatcher) -> None:
     
     dp.callback_query.register(support_menu, F.data == "support")
     dp.callback_query.register(donators_list, F.data == "donators")
-
-
-# AI — добавление всех сообщений в историю (ДОЛЖЕН БЫТЬ ПЕРВЫМ)
-    dp.message.register(handle_all_messages)
-
-# AI — упоминания Кеши
-    dp.message.register(handle_kesha_mention)
-
-# AI — ключевые слова про книги
-    dp.message.register(handle_book_keywords)
-
-# AI — новое видео в канале
-    dp.message.register(handle_video_announcement)
     
     # Админские команды
     dp.message.register(admin_command, Command("admin"))
