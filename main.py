@@ -1,64 +1,82 @@
 import asyncio
 import logging
+import sys
 
 from aiogram import Bot, Dispatcher
 from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
+from aiogram.types import BotCommand, BotCommandScopeDefault
+from aiogram.fsm.storage.memory import MemoryStorage
 
 import config
 from database import Database
-from users import register_user_handlers
-from admin import register_admin_handlers
-from triggers import refresh_triggers_cache, register_trigger_handlers
-from send import register_broadcast_handlers
-from moderations import register_moderation_handlers
-from scheduler import start_scheduler
+from handlers import register_handlers
+from triggers import register_trigger_handlers
 
 
 # Настройка логирования
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    handlers=[
+        logging.StreamHandler(sys.stdout)
+    ]
 )
 logger = logging.getLogger(__name__)
 
 
-async def main():
+async def set_bot_commands(bot: Bot) -> None:
+    """Установка команд для меню бота"""
+    commands = [
+        BotCommand(command="start", description="Главное меню"),
+        BotCommand(command="admin", description="Админ-панель"),
+        BotCommand(command="help", description="Справка по командам"),
+        BotCommand(command="cancel", description="Отмена действия"),
+    ]
+    await bot.set_my_commands(commands, scope=BotCommandScopeDefault())
+
+
+async def main() -> None:
     """Главная функция запуска бота"""
-    logger.info("🐱 Запускаем Кешу...")
+    logger.info("🐱 Запускаем бота Кеша...")
     
-    # Инициализация БД
+    # Инициализация базы данных
     db = Database()
     await db.init_db()
     logger.info("✅ База данных готова")
     
-    # Обновление кэша триггеров
-    await refresh_triggers_cache()
-    logger.info("✅ Кэш триггеров загружен")
-    
-    # Инициализация бота
+    # Создание бота и диспетчера
     bot = Bot(
         token=config.BOT_TOKEN,
         default=DefaultBotProperties(parse_mode=ParseMode.HTML)
     )
-    dp = Dispatcher()
+    storage = MemoryStorage()
+    dp = Dispatcher(storage=storage)
+    
+    # Установка команд
+    await set_bot_commands(bot)
+    logger.info("✅ Команды бота установлены")
     
     # Регистрация всех обработчиков
-    register_user_handlers(dp)
-    register_admin_handlers(dp)
+    register_handlers(dp)
     register_trigger_handlers(dp)
-    register_broadcast_handlers(dp)
-    register_moderation_handlers(dp)
     logger.info("✅ Все обработчики зарегистрированы")
     
-    # Запуск планировщика в фоне
-    asyncio.create_task(start_scheduler(bot))
-    logger.info("✅ Планировщик запущен")
+    # Запуск поллинга
+    logger.info("✅ Бот готов к работе!")
     
-    # Запуск бота
-    logger.info("✅ Кеша готов к работе!")
-    await dp.start_polling(bot)
+    try:
+        await dp.start_polling(bot)
+    except Exception as e:
+        logger.exception(f"Ошибка при запуске бота: {e}")
+    finally:
+        await bot.session.close()
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    try:
+        asyncio.run(main())
+    except KeyboardInterrupt:
+        logger.info("Бот остановлен пользователем")
+    except Exception as e:
+        logger.exception(f"Критическая ошибка: {e}")
