@@ -2,6 +2,7 @@ import logging
 import re
 from typing import Optional
 
+from ai import handle_all_messages, handle_kesha_mention, handle_book_keywords, handle_video_announcement
 from aiogram import Dispatcher, F
 from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup
 from aiogram.filters import Command, StateFilter
@@ -1426,6 +1427,19 @@ def register_handlers(dp: Dispatcher) -> None:
     
     dp.callback_query.register(support_menu, F.data == "support")
     dp.callback_query.register(donators_list, F.data == "donators")
+
+
+# AI — добавление всех сообщений в историю (ДОЛЖЕН БЫТЬ ПЕРВЫМ)
+    dp.message.register(handle_all_messages)
+
+# AI — упоминания Кеши
+    dp.message.register(handle_kesha_mention)
+
+# AI — ключевые слова про книги
+    dp.message.register(handle_book_keywords)
+
+# AI — новое видео в канале
+    dp.message.register(handle_video_announcement)
     
     # Админские команды
     dp.message.register(admin_command, Command("admin"))
