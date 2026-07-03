@@ -93,3 +93,92 @@ TRIGGER_RESPONSE_TEXT = (
 )
 
 TRIGGER_BUTTON_TEXT = "📚 Открыть бота"
+
+# ============================================================
+# ТЕКСТЫ АДМИНКИ (дополнительные)
+# ============================================================
+
+ADMIN_MENU_TEXT = "⚙️ Админ-панель\n\nВыберите раздел:"
+
+HELP_TEXT = (
+    "📋 Доступные команды:\n\n"
+    "/admin — открыть админ-панель\n"
+    "/send — обычная рассылка\n"
+    "/forward — пересылка сообщения\n"
+    "/video — рассылка нового видео\n"
+    "/addadmin — добавить администратора\n"
+    "/deladmin — удалить администратора\n"
+    "/help — список команд"
+)
+
+SEND_PROMPT = "✍️ Отправьте сообщение для рассылки.\n\nЭто может быть текст, фото, видео, документ или любой другой тип."
+SEND_CONFIRM = "✅ Получено. Начать рассылку?"
+SEND_STARTED = "⏳ Начинаю рассылку..."
+SEND_FINISHED = "✅ Рассылка завершена!\n\n📤 Отправлено: {sent}\n❌ Ошибок: {failed}\n👥 Всего: {total}"
+
+FORWARD_PROMPT = "📨 Перешлите сообщение для рассылки."
+FORWARD_CONFIRM = "✅ Получено. Начать пересылку?"
+FORWARD_STARTED = "⏳ Начинаю пересылку..."
+FORWARD_FINISHED = "✅ Пересылка завершена!\n\n📤 Отправлено: {sent}\n❌ Ошибок: {failed}\n👥 Всего: {total}"
+
+VIDEO_PROMPT = "🎬 Отправьте ссылку на новое видео (YouTube)."
+VIDEO_INVALID_URL = "❌ Неверная ссылка. Пожалуйста, отправьте ссылку на YouTube (youtube.com или youtu.be)."
+VIDEO_CONFIRM = "✅ Ссылка получена:\n\n{url}\n\nНачать рассылку?"
+VIDEO_STARTED = "⏳ Начинаю рассылку видео..."
+VIDEO_FINISHED = "✅ Рассылка видео завершена!\n\n📤 Отправлено: {sent}\n❌ Ошибок: {failed}\n👥 Всего: {total}"
+
+ADD_ADMIN_PROMPT = "➕ Введите Telegram ID пользователя, которого хотите сделать администратором."
+ADD_ADMIN_INVALID_ID = "❌ Неверный ID. Введите число."
+ADD_ADMIN_EXISTS = "❌ Этот пользователь уже администратор."
+ADD_ADMIN_SUCCESS = "✅ Администратор добавлен!"
+
+DEL_ADMIN_PROMPT = "➖ Введите Telegram ID администратора, которого хотите удалить."
+DEL_ADMIN_INVALID_ID = "❌ Неверный ID. Введите число."
+DEL_ADMIN_SELF = "❌ Нельзя удалить самого себя."
+DEL_ADMIN_LAST = "❌ Нельзя удалить последнего администратора."
+DEL_ADMIN_NOT_FOUND = "❌ Администратор с таким ID не найден."
+DEL_ADMIN_SUCCESS = "✅ Администратор удалён!"
+
+ADMIN_BOOKS_MENU = "📚 Управление книгами\n\nВыберите действие:"
+ADMIN_DONATORS_MENU = "🤝 Управление донатерами\n\nВыберите действие:"
+
+ADD_BOOK_TITLE = "📖 Введите название книги:"
+ADD_BOOK_TITLE_TOO_LONG = "❌ Название слишком длинное (максимум 150 символов)."
+ADD_BOOK_AUTHOR = "✍️ Введите автора книги:"
+ADD_BOOK_AUTHOR_TOO_LONG = "❌ Имя автора слишком длинное (максимум 150 символов)."
+ADD_BOOK_DESCRIPTION = "📝 Введите описание книги:"
+ADD_BOOK_POSTER = "🖼 Отправьте постер книги (изображение):"
+ADD_BOOK_POSTER_INVALID = "❌ Пожалуйста, отправьте изображение."
+ADD_BOOK_FILE = "📄 Отправьте файл книги:"
+ADD_BOOK_FILE_INVALID = "❌ Пожалуйста, отправьте файл."
+ADD_BOOK_SUCCESS = "✅ Книга добавлена!"
+ADD_BOOK_ERROR = "❌ Ошибка при добавлении книги."
+
+DELETE_BOOK_LIST = "🗑 Выберите книгу для удаления:"
+DELETE_BOOK_NO_BOOKS = "📚 Книг пока нет."
+DELETE_BOOK_CONFIRM = "🗑 Вы уверены, что хотите удалить книгу\n\n<b>{title}</b>?"
+DELETE_BOOK_SUCCESS = "✅ Книга <b>{title}</b> удалена."
+DELETE_BOOK_ERROR = "❌ Ошибка при удалении книги."
+
+ADD_DONATOR_NAME = "🤝 Введите имя донатера:"
+ADD_DONATOR_NAME_TOO_LONG = "❌ Имя слишком длинное (максимум 100 символов)."
+ADD_DONATOR_USERNAME = "📝 Введите username донатера (можно пропустить, введите '-'):"
+ADD_DONATOR_USERNAME_TOO_LONG = "❌ Username слишком длинный (максимум 32 символа)."
+ADD_DONATOR_SUCCESS = "✅ Донатер добавлен!"
+
+DELETE_DONATOR_LIST = "🗑 Выберите донатера для удаления:"
+DELETE_DONATOR_NO_DONATORS = "🤝 Донатеров пока нет."
+DELETE_DONATOR_CONFIRM = "🗑 Вы уверены, что хотите удалить донатера\n\n<b>{name}</b>?"
+DELETE_DONATOR_SUCCESS = "✅ Донатер <b>{name}</b> удалён."
+DELETE_DONATOR_ERROR = "❌ Ошибка при удалении донатера."
+
+CONFIRM_BUTTON = "✅ Начать"
+CANCEL_BUTTON = "❌ Отмена"
+CANCEL_ACTION = "❌ Действие отменено."
+
+ERROR_MESSAGE_NOT_FOUND = "❌ Сообщение не найдено."
+ERROR_URL_NOT_FOUND = "❌ Ссылка не найдена."
+ERROR_INVALID_DATA = "❌ Неверные данные."
+ERROR_BOOK_NOT_FOUND = "❌ Книга не найдена."
+ERROR_DONATOR_NOT_FOUND = "❌ Донатер не найден."
+ERROR_UNKNOWN_ACTION = "❌ Неизвестное действие."
