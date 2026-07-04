@@ -324,6 +324,7 @@ async def help_command(message: Message) -> None:
         text=texts.HELP_TEXT
     )
 
+
 # ---------- АДМИН: КНИГИ ----------
 async def admin_books_menu(callback: CallbackQuery) -> None:
     """Меню управления книгами"""
@@ -1187,13 +1188,28 @@ def register_handlers(dp: Dispatcher) -> None:
     """Регистрация всех обработчиков"""
 
     # ============================================================
-    # AI — ОБРАБОТЧИКИ (ДОЛЖНЫ БЫТЬ ПЕРВЫМИ)
+    # AI — ОБРАБОТЧИКИ ДЛЯ ГРУППЫ (ДОЛЖНЫ БЫТЬ ПЕРВЫМИ)
     # ============================================================
 
-    dp.message.register(handle_all_messages)
-    dp.message.register(handle_kesha_mention)
-    dp.message.register(handle_book_keywords)
-    dp.message.register(handle_video_announcement)
+    dp.message.register(
+        handle_all_messages,
+        F.chat.type.in_({"group", "supergroup"})
+    )
+
+    dp.message.register(
+        handle_kesha_mention,
+        F.chat.type.in_({"group", "supergroup"})
+    )
+
+    dp.message.register(
+        handle_book_keywords,
+        F.chat.type.in_({"group", "supergroup"})
+    )
+
+    dp.message.register(
+        handle_video_announcement,
+        F.chat.type.in_({"group", "supergroup"})
+    )
 
     # ============================================================
     # ПОЛЬЗОВАТЕЛЬСКАЯ ЧАСТЬ
