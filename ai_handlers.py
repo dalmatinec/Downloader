@@ -1,5 +1,6 @@
 from aiogram import Router, F
 from aiogram.types import Message
+from triggers import trigger_manager
 
 from ai import (
     handle_kesha_mention,
@@ -8,25 +9,27 @@ from ai import (
     handle_all_messages
 )
 
-
 router = Router()
-
 
 @router.message(F.chat.type.in_({"group", "supergroup"}))
 async def ai_router_handler(message: Message):
     """Единый обработчик AI для групп с приоритетами"""
-    
-    # Приоритет 1: упоминание Кеши (самый важный)
+
+    # 1. Приоритет: упоминание Кеши
     if await handle_kesha_mention(message):
         return
-    
-    # Приоритет 2: ключевые слова про книги
+
+    # 2. Если это триггер (слова-кнопки), ИИ молчит, чтобы сработал trigger_handlers
+    if message.text and trigger_manager.check_text(message.text):
+        return 
+
+    # 3. Если это обычный запрос про книги (не триггер), ИИ отвечает
     if await handle_book_keywords(message):
         return
-    
-    # Приоритет 3: новое видео в канале
+
+    # 4. Видео
     if await handle_video_announcement(message):
         return
-    
-    # Приоритет 4: сохранение всех сообщений в историю (всегда в конце)
+
+    # 5. Сохранение сообщений
     await handle_all_messages(message)
