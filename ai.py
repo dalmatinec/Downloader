@@ -7,6 +7,8 @@ from datetime import datetime, time
 from zoneinfo import ZoneInfo
 from typing import Optional
 
+from aiogram.types import Message
+
 import config
 from utils import safe_send_message
 
@@ -121,16 +123,16 @@ SYSTEM_PROMPT = """
 
 async def ask_ai(prompt: str, context: str = "") -> Optional[str]:
     """Запрос к Cloudflare Workers AI (Llama 3.2 3B) с контекстом"""
-    
+
     messages = [
         {"role": "system", "content": SYSTEM_PROMPT}
     ]
-    
+
     if context:
         messages.append({"role": "user", "content": f"Контекст предыдущих сообщений чата:\n{context}"})
-    
+
     messages.append({"role": "user", "content": prompt})
-    
+
     headers = {
         "Authorization": f"Bearer {CLOUDFLARE_API_TOKEN}",
         "Content-Type": "application/json"
@@ -138,7 +140,7 @@ async def ask_ai(prompt: str, context: str = "") -> Optional[str]:
     data = {
         "messages": messages
     }
-    
+
     try:
         async with aiohttp.ClientSession() as session:
             async with session.post(CLOUDFLARE_URL, headers=headers, json=data) as resp:
@@ -167,7 +169,7 @@ async def get_weather() -> Optional[dict]:
         "units": "metric",
         "lang": "ru"
     }
-    
+
     try:
         async with aiohttp.ClientSession() as session:
             async with session.get(WEATHER_URL, params=params) as resp:
@@ -233,7 +235,7 @@ def format_weather_message(weather: dict) -> str:
     date_str = now.strftime("%d.%m.%Y")
     time_str = now.strftime("%H:%M")
     emoji = get_weather_emoji(weather['condition'])
-    
+
     return (
         f"🌤 Погода в Алматы\n\n"
         f"📅 {date_str}\n"
@@ -262,7 +264,7 @@ async def get_weather_advice(weather: dict, context: str = "") -> Optional[str]:
 - Совет должен выглядеть как естественная реплика Кеши
 - Не повторяй температуру и описание погоды, они уже показаны выше
 - Максимум два коротких предложения"""
-    
+
     return await ask_ai(prompt, context)
 
 
@@ -270,16 +272,16 @@ async def send_weather(bot) -> None:
     weather = await get_weather()
     if not weather:
         return
-    
+
     context = await get_recent_messages()
     weather_message = format_weather_message(weather)
     advice = await get_weather_advice(weather, context)
-    
+
     if advice:
         full_message = f"{weather_message}\n\n🐱 {advice}"
     else:
         full_message = weather_message
-    
+
     await safe_send_message(
         bot=bot,
         chat_id=config.CHAT_ID,
@@ -291,13 +293,13 @@ async def send_weather(bot) -> None:
 async def ai_auto_message(bot) -> None:
     if is_silent_hour():
         return
-    
+
     now = datetime.now(ALMATY_TZ)
-    
+
     if now.hour == 9 and now.minute < 5:
         await send_weather(bot)
         return
-    
+
     prompt = """
 Напиши одно короткое сообщение от имени Кеши.
 
@@ -326,9 +328,9 @@ async def ai_auto_message(bot) -> None:
 
 Максимум два коротких предложения.
 """
-    
+
     response = await ask_ai(prompt)
-    
+
     if response:
         await safe_send_message(
             bot=bot,
@@ -343,16 +345,16 @@ async def handle_kesha_mention(message) -> bool:
     bot = message.bot
     if not message.text or not is_kesha_mentioned(message.text):
         return False
-    
+
     context = await get_recent_messages()
-    
+
     if is_weather_question(message.text):
         weather = await get_weather()
         if weather:
             weather_message = format_weather_message(weather)
             advice = await get_weather_advice(weather, context)
             full_message = f"{weather_message}\n\n🐱 {advice}" if advice else weather_message
-            
+
             await safe_send_message(
                 bot=bot,
                 chat_id=message.chat.id,
@@ -360,21 +362,21 @@ async def handle_kesha_mention(message) -> bool:
                 reply_to_message_id=message.message_id
             )
             return True
-    
+
     is_book_question = any(kw in message.text.lower() for kw in ["книг", "чита", "посоветуй", "почитать", "совет", "book"])
-    
+
     book_prompt = ""
     if is_book_question and BOOKS:
         book = random.choice(BOOKS)
         book_prompt = f"У тебя есть список книг: {', '.join(BOOKS)}. Выбери одну книгу из списка и порекомендуй её. Если пользователь уже читал её или пишет об этом, выбери другую."
-    
+
     prompt = f"""Тебя позвали по имени. Сообщение пользователя: {message.text}
 {book_prompt}
 
 Ответь как Кеша. Будь дружелюбным, коротким, живым. Если спрашивают про книги и есть список - используй его. Если список пуст - отвечай свободно."""
-    
+
     response = await ask_ai(prompt, context)
-    
+
     if response:
         await safe_send_message(
             bot=bot,
@@ -383,7 +385,7 @@ async def handle_kesha_mention(message) -> bool:
             reply_to_message_id=message.message_id
         )
         return True
-    
+
     return False
 
 
@@ -392,25 +394,25 @@ async def handle_book_keywords(message) -> bool:
     bot = message.bot
     if not message.text:
         return False
-    
+
     if is_kesha_mentioned(message.text):
         return False
-    
+
     text_lower = message.text.lower()
     keywords = ["книга", "книги", "книгу", "посоветуй", "что почитать", "почитать", "совет"]
-    
+
     if any(keyword in text_lower for keyword in keywords):
         context = await get_recent_messages()
-        
+
         book_prompt = ""
         if BOOKS:
             book = random.choice(BOOKS)
             book_prompt = f"У тебя есть список книг: {', '.join(BOOKS)}. Выбери одну книгу из списка и порекомендуй её. Если пользователь уже читал её или пишет об этом, выбери другую."
-        
+
         prompt = f"Пользователь спросил про книги: {message.text}\n{book_prompt}\n\nОтветь коротко, тепло, по делу. Если есть список книг - используй его. Если список пуст - отвечай свободно."
-        
+
         response = await ask_ai(prompt, context)
-        
+
         if response:
             await safe_send_message(
                 bot=bot,
@@ -419,7 +421,7 @@ async def handle_book_keywords(message) -> bool:
                 reply_to_message_id=message.message_id
             )
             return True
-    
+
     return False
 
 
@@ -428,13 +430,13 @@ async def handle_video_announcement(message) -> bool:
     bot = message.bot
     if not message.sender_chat:
         return False
-    
+
     if message.sender_chat.username != CHANNEL_USERNAME:
         return False
-    
+
     if not message.reply_markup:
         return False
-    
+
     has_youtube = False
     for row in message.reply_markup.inline_keyboard:
         for button in row:
@@ -443,12 +445,12 @@ async def handle_video_announcement(message) -> bool:
                 break
         if has_youtube:
             break
-    
+
     if not has_youtube:
         return False
-    
+
     await asyncio.sleep(random.randint(18, 25))
-    
+
     prompt = """
 В чате появилось новое видео.
 
@@ -472,9 +474,9 @@ async def handle_video_announcement(message) -> bool:
 - не упоминать YouTube напрямую;
 - сообщение должно выглядеть как сообщение живого участника чата.
 """
-    
+
     response = await ask_ai(prompt)
-    
+
     if response:
         await safe_send_message(
             bot=bot,
@@ -483,19 +485,21 @@ async def handle_video_announcement(message) -> bool:
         )
         logger.info("Video reaction sent")
         return True
-    
+
     return False
 
 
-async def handle_all_messages(message) -> None:
+async def handle_all_messages(message: Message) -> None:
     if not message.text:
         return
-    
+
     if message.from_user.is_bot:
         return
-    
-    username = message.from_user.first_name or "Пользователь"
-    add_message_to_history(username, message.text)
+
+    # Добавляем в историю ТОЛЬКО если это группа
+    if message.chat.type in ["group", "supergroup"]:
+        username = message.from_user.first_name or "Пользователь"
+        add_message_to_history(username, message.text)
 
 
 async def ai_loop(bot):
