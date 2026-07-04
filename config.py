@@ -1,9 +1,9 @@
-BOT_TOKEN = "8830635134:AAFQLa0Naw4JMLCeElYIQ_rKc8jHQRF4bKA"
-ADMIN_ID = 7982614573  # Список администраторов
+BOT_TOKEN = ""
+ADMIN_ID =   # Список администраторов
 
 BOT_USERNAME = "@KeshaBot"
 CHANNEL_ID = -1001234567890
-CHAT_ID = -1001234567890
+CHAT_ID = -1004480019939
 
 # Основные ссылки
 CHANNEL_LINK = "https://t.me/vashemurlichestvo"
