@@ -19,26 +19,37 @@ async def safe_send_message(
     chat_id: int,
     text: str,
     reply_markup: InlineKeyboardMarkup = None,
+    reply_to_message_id: Optional[int] = None,
     disable_web_page_preview: bool = True,
     db: Database = None
 ) -> Optional[Message]:
-    """Безопасная отправка сообщения"""
+    """Безопасная отправка сообщения с поддержкой reply_to_message_id"""
     try:
         return await bot.send_message(
             chat_id=chat_id,
             text=text,
             parse_mode="HTML",
             reply_markup=reply_markup,
+            reply_to_message_id=reply_to_message_id,
             disable_web_page_preview=disable_web_page_preview
         )
     except TelegramRetryAfter as e:
         logger.warning(f"Retry after {e.retry_after}s for chat {chat_id}")
-        return None
+        await asyncio.sleep(e.retry_after)
+        return await safe_send_message(
+            bot, chat_id, text, reply_markup, reply_to_message_id,
+            disable_web_page_preview, db
+        )
     except TelegramBadRequest as e:
         error = str(e).lower()
         if "blocked" in error or "bot was blocked" in error:
             if db:
                 await db.set_blocked(chat_id, True)
+        elif "parse_mode" in error:
+            return await safe_send_message(
+                bot, chat_id, text, reply_markup, reply_to_message_id,
+                disable_web_page_preview, db
+            )
         logger.warning(f"Bad request: {e}")
         return None
     except Exception as e:
@@ -108,7 +119,7 @@ def format_donators(donators: List[Dict[str, Any]]) -> str:
     """Форматирование списка донатеров"""
     if not donators:
         return texts.DONATORS_EMPTY
-    
+
     result = []
     for d in donators:
         name = escape_html(d['name'])
@@ -116,7 +127,7 @@ def format_donators(donators: List[Dict[str, Any]]) -> str:
             result.append(f"🐾 {name} (@{escape_html(d['username'])})")
         else:
             result.append(f"🐾 {name}")
-    
+
     return "\n".join(result)
 
 
