@@ -1191,25 +1191,13 @@ def register_handlers(dp: Dispatcher) -> None:
     # AI — ОБРАБОТЧИКИ ДЛЯ ГРУППЫ (ДОЛЖНЫ БЫТЬ ПЕРВЫМИ)
     # ============================================================
 
-    dp.message.register(
-        handle_all_messages,
-        F.chat.type.in_({"group", "supergroup"})
-    )
+    dp.message.register(handle_all_messages, F.chat.type.in_({"group", "supergroup"}))
 
-    dp.message.register(
-        handle_kesha_mention,
-        F.chat.type.in_({"group", "supergroup"})
-    )
+    dp.message.register(handle_kesha_mention, F.chat.type.in_({"group", "supergroup"}))
 
-    dp.message.register(
-        handle_book_keywords,
-        F.chat.type.in_({"group", "supergroup"})
-    )
+    dp.message.register(handle_book_keywords, F.chat.type.in_({"group", "supergroup"}))
 
-    dp.message.register(
-        handle_video_announcement,
-        F.chat.type.in_({"group", "supergroup"})
-    )
+    dp.message.register(handle_video_announcement, F.chat.type.in_({"group", "supergroup"}))
 
     # ============================================================
     # ПОЛЬЗОВАТЕЛЬСКАЯ ЧАСТЬ
