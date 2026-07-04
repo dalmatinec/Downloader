@@ -1,8 +1,9 @@
-import re
 from aiogram import Router, F
-from aiogram.types import Message, CallbackQuery
+from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup
 from aiogram.filters import Command, StateFilter
 from aiogram.fsm.context import FSMContext
+from aiogram.fsm.state import State, StatesGroup
+from aiogram.utils.keyboard import InlineKeyboardBuilder
 
 import config
 import texts
@@ -25,7 +26,49 @@ from utils import (
     escape_html,
     format_stats
 )
-from handlers import AdminStates, get_confirm_kb, is_admin, db, logger
+
+
+logger = logging.getLogger(__name__)
+db = Database()
+
+
+# ============================================================
+# FSM СОСТОЯНИЯ (дублируем здесь)
+# ============================================================
+
+class AdminStates(StatesGroup):
+    waiting_send_message = State()
+    waiting_forward_message = State()
+    waiting_video_url = State()
+    waiting_book_title = State()
+    waiting_book_author = State()
+    waiting_book_description = State()
+    waiting_book_poster = State()
+    waiting_book_file = State()
+    waiting_donator_name = State()
+    waiting_donator_username = State()
+    waiting_add_admin_id = State()
+    waiting_del_admin_id = State()
+    waiting_confirm = State()
+
+
+# ============================================================
+# ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ
+# ============================================================
+
+def get_confirm_kb(action: str) -> InlineKeyboardMarkup:
+    builder = InlineKeyboardBuilder()
+    builder.button(text=texts.CONFIRM_BUTTON, callback_data=f"confirm:{action}")
+    builder.button(text=texts.CANCEL_BUTTON, callback_data="action:cancel")
+    builder.adjust(2)
+    return builder.as_markup()
+
+
+async def is_admin(user_id: int) -> bool:
+    if user_id == config.ADMIN_ID:
+        return True
+    admin = await db.get_admin(user_id)
+    return admin is not None
 
 
 router = Router()
@@ -303,7 +346,6 @@ async def admin_book_delete_execute(callback: CallbackQuery, state: FSMContext) 
     await state.clear()
     await callback.answer()
 
-
 # ============================================================
 # ДОНАТЕРЫ (АДМИН)
 # ============================================================
@@ -459,6 +501,7 @@ async def admin_donator_delete_execute(callback: CallbackQuery, state: FSMContex
         )
     await state.clear()
     await callback.answer()
+
 
 # ============================================================
 # СТАТИСТИКА
