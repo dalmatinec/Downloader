@@ -57,9 +57,9 @@ async def main() -> None:
     dp = Dispatcher(storage=storage)
 
     # Подключение роутеров
+    dp.include_router(trigger_router)
     dp.include_router(admin_router)
     dp.include_router(user_router)
-    dp.include_router(trigger_router)
     dp.include_router(ai_router)
     logger.info("✅ Все роутеры подключены")
 
