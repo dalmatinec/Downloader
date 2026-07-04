@@ -1,3 +1,4 @@
+
 import asyncio
 import aiohttp
 import random
@@ -489,17 +490,18 @@ async def handle_video_announcement(message) -> bool:
     return False
 
 
-async def handle_all_messages(message: Message) -> None:
+async def handle_all_messages(message: Message) -> bool:
+    """Собирает историю сообщений для контекста ИИ"""
     if not message.text:
-        return
+        return False
 
     if message.from_user.is_bot:
-        return
+        return False
 
-    # Добавляем в историю ТОЛЬКО если это группа
-    if message.chat.type in ["group", "supergroup"]:
-        username = message.from_user.first_name or "Пользователь"
-        add_message_to_history(username, message.text)
+    username = message.from_user.first_name or "Пользователь"
+    add_message_to_history(username, message.text)
+    
+    return False  # ← Это важно, чтобы другие обработчики тоже работали
 
 
 async def ai_loop(bot):
