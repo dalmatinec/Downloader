@@ -11,8 +11,12 @@ from aiogram.fsm.storage.memory import MemoryStorage
 
 import config
 from database import Database
-from handlers import register_handlers
-from triggers import register_trigger_handlers
+
+# Импорты роутеров
+from admin_handlers import router as admin_router
+from user_handlers import router as user_router
+from trigger_handlers import router as trigger_router
+from ai_handlers import router as ai_router
 
 
 # Настройка логирования
@@ -52,14 +56,16 @@ async def main() -> None:
     storage = MemoryStorage()
     dp = Dispatcher(storage=storage)
 
+    # Подключение роутеров
+    dp.include_router(admin_router)
+    dp.include_router(user_router)
+    dp.include_router(trigger_router)
+    dp.include_router(ai_router)
+    logger.info("✅ Все роутеры подключены")
+
     # Установка команд
     await set_bot_commands(bot)
     logger.info("✅ Команды бота установлены")
-
-    # Регистрация всех обработчиков
-    register_handlers(dp)
-    register_trigger_handlers(dp)
-    logger.info("✅ Все обработчики зарегистрированы")
 
     # Запуск AI-цикла в фоне
     asyncio.create_task(ai_loop(bot))
