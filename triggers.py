@@ -21,11 +21,11 @@ class TriggerManager:
             r'\bкниг[ауиейойе]?\b',
             r'\bкнижк[аиуе]?\b',
             r'\bкнижн[а-я]*\b',
-            
+
             # Английские варианты
             r'\bbook\b',
             r'\bbooks\b',
-            
+
             # Фразы с книгой
             r'посоветуй(?:те)?\s+книгу',
             r'как(?:ую)?\s+книг[уи]',
@@ -91,4 +91,7 @@ async def get_trigger_button():
 
 def register_trigger_handlers(dp: Dispatcher) -> None:
     """Регистрация обработчика триггеров"""
-    dp.message.register(handle_message)
+    dp.message.register(
+        handle_message,
+        F.chat.type.in_({"group", "supergroup"})
+    )
