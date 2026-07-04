@@ -182,3 +182,5 @@ ERROR_INVALID_DATA = "❌ Неверные данные."
 ERROR_BOOK_NOT_FOUND = "❌ Книга не найдена."
 ERROR_DONATOR_NOT_FOUND = "❌ Донатер не найден."
 ERROR_UNKNOWN_ACTION = "❌ Неизвестное действие."
+
+BOOKS_LIST = "📚 Вот список всех наших книг:"
