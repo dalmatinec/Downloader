@@ -31,7 +31,7 @@ router = Router()
 # /START
 # ============================================================
 
-@router.message(Command("start"))
+@router.message(Command("start"), F.chat.type == "private")  # только ЛС
 async def start_command(message: Message) -> None:
     user = message.from_user
     await db.add_user(user.id, user.username or "")
