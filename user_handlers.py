@@ -189,6 +189,14 @@ async def support_menu(callback: CallbackQuery) -> None:
     )
     await callback.answer()
 
+# ---------------- ДОБАВЛЕНО ----------------
+
+@router.callback_query(F.data == "back:support")
+async def support_back(callback: CallbackQuery) -> None:
+    await support_menu(callback)
+
+# -------------- КОНЕЦ ДОБАВЛЕНИЯ --------------
+
 
 # ============================================================
 # ДОНАТЕРЫ
