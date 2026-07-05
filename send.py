@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import random
 from typing import List, Dict, Any, Optional
 
 from aiogram import Bot
@@ -143,7 +144,7 @@ async def video_broadcast(
     video_url: str
 ) -> Dict[str, Any]:
     """
-    Рассылка уведомления о новом видео + публикация в канал
+    Рассылка уведомления о новом видео + публикация в канал + реакция Кеши
     
     Args:
         bot: экземпляр бота
@@ -176,6 +177,7 @@ async def video_broadcast(
         logger.info(f"Video announcement sent to channel: {config.CHANNEL_ID}")
     except Exception as e:
         logger.exception(f"Failed to send video to channel: {e}")
+        return {"total": 0, "sent": 0, "failed": 0}
 
     # Рассылка пользователям
     users = await db.get_active_users()
@@ -227,5 +229,18 @@ async def video_broadcast(
 
     await db.add_broadcast("video", sent, failed)
     logger.info(f"Video broadcast completed: sent={sent}, failed={failed}, total={total}")
+
+    # === РЕАКЦИЯ КЕШИ В ЧАТ (с защитой try/except) ===
+    try:
+        if texts.VIDEO_REACTIONS:
+            reaction = random.choice(texts.VIDEO_REACTIONS)
+            await safe_send_message(
+                bot=bot,
+                chat_id=config.CHAT_ID,
+                text=reaction
+            )
+            logger.info("Video reaction sent to chat")
+    except Exception as e:
+        logger.exception(f"Failed to send video reaction: {e}")
 
     return {"total": total, "sent": sent, "failed": failed}
