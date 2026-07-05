@@ -5,7 +5,6 @@ from triggers import trigger_manager
 from ai import (
     handle_kesha_mention,
     handle_book_keywords,
-    handle_video_announcement,
     handle_all_messages
 )
 
@@ -27,9 +26,6 @@ async def ai_router_handler(message: Message):
     if await handle_book_keywords(message):
         return
 
-    # 4. Видео
-    if await handle_video_announcement(message):
-        return
 
     # 5. Сохранение сообщений
     await handle_all_messages(message)
