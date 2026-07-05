@@ -2,7 +2,7 @@ import asyncio
 import logging
 import sys
 
-from ai import ai_loop
+from ai import ai_loop, ai_auto_message
 from aiogram import Bot, Dispatcher
 from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
@@ -67,7 +67,10 @@ async def main() -> None:
     await set_bot_commands(bot)
     logger.info("✅ Команды бота установлены")
 
-    # Запуск AI-цикла в фоне
+    # Первое сообщение сразу после запуска
+    await ai_auto_message(bot)
+
+    # Запуск AI-цикла каждые 2 часа
     asyncio.create_task(ai_loop(bot))
     logger.info("✅ AI-цикл запущен")
 
