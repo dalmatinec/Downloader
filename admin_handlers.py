@@ -138,6 +138,28 @@ async def help_command(message: Message) -> None:
 
 
 # ============================================================
+# /ADMLIST
+# ============================================================
+
+@router.message(Command("admlist"))
+async def admin_list_command(message: Message) -> None:
+    if not await is_admin(message.from_user.id):
+        return
+
+    admins = await db.get_all_admins()
+
+    text = "<b>👑 Список администраторов</b>\n\n"
+
+    for i, admin in enumerate(admins, 1):
+        text += f"{i}. <code>{admin['telegram_id']}</code>\n"
+
+    await safe_send_message(
+        bot=message.bot,
+        chat_id=message.chat.id,
+        text=text
+    )
+
+# ============================================================
 # КНИГИ (АДМИН)
 # ============================================================
 
