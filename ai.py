@@ -515,5 +515,5 @@ async def handle_reply_to_kesha(message: Message) -> bool:
 async def ai_loop(bot):
     """Бесконечный цикл для автоматических сообщений"""
     while True:
-        await ai_auto_message(bot)
         await asyncio.sleep(7200)  # 2 часа
+        await ai_auto_message(bot)
