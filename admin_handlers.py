@@ -160,6 +160,32 @@ async def admin_list_command(message: Message) -> None:
     )
 
 # ============================================================
+# /BOOKLIST
+# ============================================================
+
+@router.message(Command("booklist"))
+async def booklist_command(message: Message) -> None:
+    if not await is_admin(message.from_user.id):
+        return
+
+    books = await db.get_all_books()
+
+    if not books:
+        await message.answer(texts.BOOKS_EMPTY)
+        return
+
+    text = f"📚 <b>Список книг ({len(books)})</b>\n\n"
+
+    for i, book in enumerate(books, start=1):
+        text += (
+            f"{i}. <b>{escape_html(book['title'])}</b>\n"
+            f"👤 {escape_html(book['author'])}\n"
+            f"🆔 ID: <code>{book['id']}</code>\n\n"
+        )
+
+    await message.answer(text)
+
+# ============================================================
 # КНИГИ (АДМИН)
 # ============================================================
 
