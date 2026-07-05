@@ -2,8 +2,9 @@ import asyncio
 import aiohttp
 import random
 import logging
+import time
 from collections import deque
-from datetime import datetime, time
+from datetime import datetime, time as dt_time
 from zoneinfo import ZoneInfo
 from typing import Optional
 
@@ -49,12 +50,20 @@ chat_history = deque(maxlen=20)
 
 
 def add_message_to_history(username: str, text: str) -> None:
+    """Добавление сообщения пользователя в историю"""
     if not text:
         return
     chat_history.append(f"{username}: {text}")
 
 
-async def get_recent_messages(limit: int = 15) -> str:
+def add_ai_message_to_history(text: str) -> None:
+    """Добавление ответа Кеши в историю"""
+    if not text:
+        return
+    chat_history.append(f"Кеша: {text}")
+
+
+async def get_recent_messages(limit: int = 20) -> str:
     if not chat_history:
         return ""
     recent = list(chat_history)[-limit:]
@@ -78,11 +87,38 @@ SYSTEM_PROMPT = """
 
 
 # ============================================================
+# ОГРАНИЧИТЕЛЬ ЗАПРОСОВ (только для пользовательских обращений)
+# ============================================================
+
+_rate_limit = {
+    "last_request_time": 0,
+    "request_count": 0
+}
+
+
+async def check_rate_limit() -> bool:
+    """Проверка лимита запросов (не более 5 в минуту)"""
+    now = time.time()
+    
+    if now - _rate_limit["last_request_time"] > 60:
+        _rate_limit["request_count"] = 0
+        _rate_limit["last_request_time"] = now
+    
+    if _rate_limit["request_count"] >= 5:
+        logger.warning("AI rate limit exceeded")
+        return False
+    
+    _rate_limit["request_count"] += 1
+    _rate_limit["last_request_time"] = now
+    return True
+
+
+# ============================================================
 # ОСНОВНЫЕ ФУНКЦИИ
 # ============================================================
 
 async def ask_ai(prompt: str, context: str = "") -> Optional[str]:
-    """Запрос к Cloudflare Workers AI с контекстом"""
+    """Запрос к Cloudflare Workers AI с контекстом (без ограничителя)"""
 
     messages = [
         {"role": "system", "content": SYSTEM_PROMPT}
@@ -115,9 +151,15 @@ async def ask_ai(prompt: str, context: str = "") -> Optional[str]:
                 if resp.status == 200:
                     result = await resp.json()
                     if "result" in result and "response" in result["result"]:
-                        return result["result"]["response"].strip()
+                        response = result["result"]["response"].strip()
+                        if response:
+                            logger.info("AI response generated")
+                            return response
                     elif "result" in result and "choices" in result["result"]:
-                        return result["result"]["choices"][0]["message"]["content"].strip()
+                        response = result["result"]["choices"][0]["message"]["content"].strip()
+                        if response:
+                            logger.info("AI response generated")
+                            return response
                     else:
                         logger.error(f"Неожиданный ответ: {result}")
                         return None
@@ -179,7 +221,7 @@ def get_weather_emoji(condition: str) -> str:
 
 def is_silent_hour() -> bool:
     now = datetime.now(ALMATY_TZ).time()
-    return time(1, 0) <= now <= time(7, 0)
+    return dt_time(1, 0) <= now <= dt_time(7, 0)
 
 
 def is_kesha_mentioned(text: str) -> bool:
@@ -251,6 +293,8 @@ async def send_weather(bot) -> None:
         chat_id=config.CHAT_ID,
         text=full_message
     )
+    if advice:
+        add_ai_message_to_history(advice)
     logger.info("Weather sent to chat")
 
 
@@ -301,10 +345,14 @@ async def ai_auto_message(bot) -> None:
             chat_id=config.CHAT_ID,
             text=response
         )
+        add_ai_message_to_history(response)
         logger.info("AI auto message sent")
 
 
 async def handle_kesha_mention(message) -> bool:
+    if not await check_rate_limit():
+        return False
+    
     logger.info("handle_kesha_mention")
     bot = message.bot
     if not message.text or not is_kesha_mentioned(message.text):
@@ -326,6 +374,8 @@ async def handle_kesha_mention(message) -> bool:
                 text=full_message,
                 reply_to_message_id=message.message_id
             )
+            if advice:
+                add_ai_message_to_history(advice)
             return True
 
     is_book_question = any(kw in message.text.lower() for kw in ["книг", "чита", "посоветуй", "почитать", "совет", "book"])
@@ -352,12 +402,16 @@ async def handle_kesha_mention(message) -> bool:
             text=response,
             reply_to_message_id=message.message_id
         )
+        add_ai_message_to_history(response)
         return True
 
     return False
 
 
 async def handle_book_keywords(message) -> bool:
+    if not await check_rate_limit():
+        return False
+    
     logger.info("handle_book_keywords")
     bot = message.bot
     if not message.text:
@@ -390,6 +444,7 @@ async def handle_book_keywords(message) -> bool:
                 text=response,
                 reply_to_message_id=message.message_id
             )
+            add_ai_message_to_history(response)
             return True
 
     return False
@@ -410,6 +465,9 @@ async def handle_all_messages(message: Message) -> bool:
 
 
 async def handle_reply_to_kesha(message: Message) -> bool:
+    if not await check_rate_limit():
+        return False
+    
     """Обработка Reply на сообщение Кеши"""
     if not message.reply_to_message:
         return False
@@ -448,6 +506,7 @@ async def handle_reply_to_kesha(message: Message) -> bool:
             text=response,
             reply_to_message_id=message.message_id
         )
+        add_ai_message_to_history(response)
         return True
 
     return False
