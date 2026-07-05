@@ -74,6 +74,23 @@ async def is_admin(user_id: int) -> bool:
 
 router = Router()
 
+# ============================================================
+# /CANCEL
+# ============================================================
+
+@router.message(Command("cancel"), StateFilter("*"))
+async def cancel_command(message: Message, state: FSMContext) -> None:
+    if not await is_admin(message.from_user.id):
+        return
+
+    await state.clear()
+
+    await safe_send_message(
+        bot=message.bot,
+        chat_id=message.chat.id,
+        text="❌ Действие отменено.",
+        reply_markup=get_admin_kb()
+    )
 
 # ============================================================
 # /ADMIN
