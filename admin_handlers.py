@@ -180,7 +180,8 @@ async def booklist_command(message: Message) -> None:
         text += (
             f"{i}. <b>{escape_html(book['title'])}</b>\n"
             f"👤 {escape_html(book['author'])}\n"
-            f"🆔 ID: <code>{book['id']}</code>\n\n"
+            f"🆔 ID: <code>{book['id']}</code>\n"
+            f"➖➖➖➖➖\n\n"
         )
 
     await message.answer(text)
