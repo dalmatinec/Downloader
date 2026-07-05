@@ -222,4 +222,15 @@ async def donators_list(callback: CallbackQuery) -> None:
 
 @router.callback_query(F.data == "back:books")
 async def books_back(callback: CallbackQuery) -> None:
+    books = await db.get_all_books()
+
+    if callback.message.photo:  # если открыта карточка с постером
+        await callback.message.delete()
+        await callback.message.answer(
+            texts.BOOKS_EMPTY if not books else texts.BOOKS_LIST,
+            reply_markup=get_back_kb("back:main") if not books else get_books_kb(books)
+        )
+        await callback.answer()
+        return
+
     await books_list(callback)
