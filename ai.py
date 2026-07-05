@@ -96,7 +96,7 @@ _rate_limit = {
 }
 
 
-async def check_rate_limit() -> bool:
+async def check_rate_limit(user_id: int) -> bool:
     """Проверка лимита запросов (не более 5 в минуту)"""
     now = time.time()
     
@@ -105,7 +105,7 @@ async def check_rate_limit() -> bool:
         _rate_limit["last_request_time"] = now
     
     if _rate_limit["request_count"] >= 5:
-        logger.warning("AI rate limit exceeded")
+        logger.warning(f"Rate limit exceeded. User: {user_id}")
         return False
     
     _rate_limit["request_count"] += 1
@@ -350,12 +350,12 @@ async def ai_auto_message(bot) -> None:
 
 
 async def handle_kesha_mention(message) -> bool:
-    if not await check_rate_limit():
-        return False
-    
     logger.info("handle_kesha_mention")
     bot = message.bot
     if not message.text or not is_kesha_mentioned(message.text):
+        return False
+
+    if not await check_rate_limit(message.from_user.id):
         return False
 
     context = await get_recent_messages()
@@ -409,9 +409,6 @@ async def handle_kesha_mention(message) -> bool:
 
 
 async def handle_book_keywords(message) -> bool:
-    if not await check_rate_limit():
-        return False
-    
     logger.info("handle_book_keywords")
     bot = message.bot
     if not message.text:
@@ -424,6 +421,9 @@ async def handle_book_keywords(message) -> bool:
     keywords = ["книга", "книги", "книгу", "посоветуй", "что почитать", "почитать", "совет"]
 
     if any(keyword in text_lower for keyword in keywords):
+        if not await check_rate_limit(message.from_user.id):
+            return False
+
         context = await get_recent_messages()
 
         books = await db.get_all_books()
@@ -465,9 +465,6 @@ async def handle_all_messages(message: Message) -> bool:
 
 
 async def handle_reply_to_kesha(message: Message) -> bool:
-    if not await check_rate_limit():
-        return False
-    
     """Обработка Reply на сообщение Кеши"""
     if not message.reply_to_message:
         return False
@@ -477,6 +474,9 @@ async def handle_reply_to_kesha(message: Message) -> bool:
 
     logger.info("handle_reply_to_kesha")
     bot = message.bot
+
+    if not await check_rate_limit(message.from_user.id):
+        return False
 
     context = await get_recent_messages()
 
