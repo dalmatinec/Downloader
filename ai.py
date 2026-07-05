@@ -10,22 +10,18 @@ from typing import Optional
 from aiogram.types import Message
 
 import config
+from database import Database
 from utils import safe_send_message
 
 
 logger = logging.getLogger(__name__)
+db = Database()
 
 # ============================================================
 # ЧАСОВОЙ ПОЯС АЛМАТЫ
 # ============================================================
 
 ALMATY_TZ = ZoneInfo("Asia/Almaty")
-
-# ============================================================
-# КАНАЛ
-# ============================================================
-
-CHANNEL_USERNAME = "vashemurlichestvo"
 
 
 # ============================================================
@@ -43,15 +39,6 @@ CLOUDFLARE_URL = f"https://api.cloudflare.com/client/v4/accounts/{CLOUDFLARE_ACC
 
 WEATHER_API_KEY = "285bb0213af2bacf33ed8c43761543e0"
 WEATHER_URL = "https://api.openweathermap.org/data/2.5/weather"
-
-
-# ============================================================
-# КНИГИ (ПУСТОЙ СПИСОК)
-# ============================================================
-
-BOOKS = [
-    # позже сюда будут добавлены книги
-]
 
 
 # ============================================================
@@ -79,48 +66,40 @@ async def get_recent_messages(limit: int = 15) -> str:
 # ============================================================
 
 SYSTEM_PROMPT = """
-Ты Кеша — домашний кот и постоянный участник Telegram-чата.
+Ты Кеша — домашний кот из Telegram-чата.
 
-Ты никогда не говоришь, что ты ИИ, бот или языковая модель.
+Никогда не говори, что ты ИИ или бот.
+Всегда отвечай только на русском языке.
 
-Правила:
-
-• Всегда отвечай только на русском языке.
-• Если сообщение написано на другом языке — всё равно отвечай на русском.
-• Отвечай только по теме вопроса.
-• Не придумывай факты, события, истории и цитаты.
-• Если не знаешь ответа — честно скажи об этом.
-• Не философствуй без причины.
-• Не пиши бессмысленный текст.
-• Не повторяй одну мысль разными словами.
-• Обычно отвечай 1–3 короткими предложениями.
-
-Стиль:
-
-• спокойный;
-• дружелюбный;
-• немного саркастичный;
-• естественный;
-• любишь книги, котов, чай и уют.
-
-Каждый ответ должен выглядеть как сообщение обычного человека в чате.
+Пиши естественно, коротко и по делу.
+Не выдумывай факты.
+Если не знаешь — честно скажи.
 """
+
 
 # ============================================================
 # ОСНОВНЫЕ ФУНКЦИИ
 # ============================================================
 
 async def ask_ai(prompt: str, context: str = "") -> Optional[str]:
-    """Запрос к Cloudflare Workers AI (Llama 3.2 3B) с контекстом"""
+    """Запрос к Cloudflare Workers AI с контекстом"""
 
     messages = [
         {"role": "system", "content": SYSTEM_PROMPT}
     ]
 
     if context:
-        messages.append({"role": "user", "content": f"Контекст предыдущих сообщений чата:\n{context}"})
+        messages.append({"role": "user", "content": f"Контекст предыдущих сообщений:\n{context}"})
 
-    messages.append({"role": "user", "content": prompt})
+    messages.append({
+        "role": "user",
+        "content": (
+            "Отвечай только на русском языке.\n"
+            "Запрещено использовать любые иностранные слова, фразы, предложения, латиницу и смешение языков.\n"
+            "Если пользователь написал сообщение на любом другом языке — всё равно отвечай только на русском.\n\n"
+            f"{prompt}"
+        )
+    })
 
     headers = {
         "Authorization": f"Bearer {CLOUDFLARE_API_TOKEN}",
@@ -140,7 +119,7 @@ async def ask_ai(prompt: str, context: str = "") -> Optional[str]:
                     elif "result" in result and "choices" in result["result"]:
                         return result["result"]["choices"][0]["message"]["content"].strip()
                     else:
-                        logger.error(f"Неожиданный ответ Cloudflare: {result}")
+                        logger.error(f"Неожиданный ответ: {result}")
                         return None
                 else:
                     error_text = await resp.text()
@@ -237,10 +216,6 @@ def format_weather_message(weather: dict) -> str:
     )
 
 
-# ============================================================
-# ОСНОВНЫЕ ФУНКЦИИ AI
-# ============================================================
-
 async def get_weather_advice(weather: dict, context: str = "") -> Optional[str]:
     prompt = f"""Погода в Алматы сейчас: {weather['temp']:.0f}°C, {weather['condition']}
 
@@ -336,6 +311,7 @@ async def handle_kesha_mention(message) -> bool:
         return False
 
     context = await get_recent_messages()
+    book_prompt = ""
 
     if is_weather_question(message.text):
         weather = await get_weather()
@@ -354,15 +330,18 @@ async def handle_kesha_mention(message) -> bool:
 
     is_book_question = any(kw in message.text.lower() for kw in ["книг", "чита", "посоветуй", "почитать", "совет", "book"])
 
-    book_prompt = ""
-    if is_book_question and BOOKS:
-        book = random.choice(BOOKS)
-        book_prompt = f"У тебя есть список книг: {', '.join(BOOKS)}. Выбери одну книгу из списка и порекомендуй её. Если пользователь уже читал её или пишет об этом, выбери другую."
+    if is_book_question:
+        books = await db.get_all_books()
+        if books:
+            book_list = ", ".join(f'{book["title"]} — {book["author"]}' for book in books)
+            book_prompt = f"Список книг: {book_list}. Выбери одну книгу из списка и порекомендуй её. Если пользователь уже читал её или пишет об этом, выбери другую. Не придумывай книги, которых нет в списке."
+        else:
+            book_prompt = "Список книг пуст. Можешь советовать любые книги, но естественно и без выдумок."
 
     prompt = f"""Тебя позвали по имени. Сообщение пользователя: {message.text}
 {book_prompt}
 
-Ответь как Кеша. Будь дружелюбным, коротким, живым. Если спрашивают про книги и есть список - используй его. Если список пуст - отвечай свободно."""
+Ответь как Кеша. Будь дружелюбным, коротким, живым. Если спрашивают про книги и есть список — используй его. Если список пуст — отвечай свободно."""
 
     response = await ask_ai(prompt, context)
 
@@ -393,12 +372,14 @@ async def handle_book_keywords(message) -> bool:
     if any(keyword in text_lower for keyword in keywords):
         context = await get_recent_messages()
 
-        book_prompt = ""
-        if BOOKS:
-            book = random.choice(BOOKS)
-            book_prompt = f"У тебя есть список книг: {', '.join(BOOKS)}. Выбери одну книгу из списка и порекомендуй её. Если пользователь уже читал её или пишет об этом, выбери другую."
+        books = await db.get_all_books()
+        if books:
+            book_list = ", ".join(f'{book["title"]} — {book["author"]}' for book in books)
+            book_prompt = f"Список книг: {book_list}. Выбери одну книгу из списка и порекомендуй её. Если пользователь уже читал её или пишет об этом, выбери другую. Не придумывай книги, которых нет в списке."
+        else:
+            book_prompt = "Список книг пуст. Можешь советовать любые книги."
 
-        prompt = f"Пользователь спросил про книги: {message.text}\n{book_prompt}\n\nОтветь коротко, тепло, по делу. Если есть список книг - используй его. Если список пуст - отвечай свободно."
+        prompt = f"Пользователь спросил про книги: {message.text}\n{book_prompt}\n\nОтветь коротко, тепло, по делу."
 
         response = await ask_ai(prompt, context)
 
@@ -414,70 +395,6 @@ async def handle_book_keywords(message) -> bool:
     return False
 
 
-async def handle_video_announcement(message) -> bool:
-    logger.info("handle_video_announcement")
-    bot = message.bot
-    if not message.sender_chat:
-        return False
-
-    if message.sender_chat.username != CHANNEL_USERNAME:
-        return False
-
-    if not message.reply_markup:
-        return False
-
-    has_youtube = False
-    for row in message.reply_markup.inline_keyboard:
-        for button in row:
-            if button.url and ("youtube.com" in button.url or "youtu.be" in button.url):
-                has_youtube = True
-                break
-        if has_youtube:
-            break
-
-    if not has_youtube:
-        return False
-
-    await asyncio.sleep(random.randint(18, 25))
-
-    prompt = """
-В чате появилось новое видео.
-
-Напиши короткую естественную реакцию Кеши.
-
-Выбери один вариант:
-
-- пожелай приятного просмотра;
-- скажи что сам сейчас посмотришь;
-- попроси потом поделиться впечатлениями;
-- легко пошути.
-
-Очень важно:
-
-- только одна мысль;
-- максимум два предложения;
-- не выдумывать истории;
-- не менять тему;
-- не использовать шаблоны;
-- не упоминать ссылку;
-- не упоминать YouTube напрямую;
-- сообщение должно выглядеть как сообщение живого участника чата.
-"""
-
-    response = await ask_ai(prompt)
-
-    if response:
-        await safe_send_message(
-            bot=bot,
-            chat_id=message.chat.id,
-            text=response
-        )
-        logger.info("Video reaction sent")
-        return True
-
-    return False
-
-
 async def handle_all_messages(message: Message) -> bool:
     """Собирает историю сообщений для контекста ИИ"""
     if not message.text:
@@ -488,8 +405,52 @@ async def handle_all_messages(message: Message) -> bool:
 
     username = message.from_user.first_name or "Пользователь"
     add_message_to_history(username, message.text)
-    
-    return False  # ← Это важно, чтобы другие обработчики тоже работали
+
+    return False
+
+
+async def handle_reply_to_kesha(message: Message) -> bool:
+    """Обработка Reply на сообщение Кеши"""
+    if not message.reply_to_message:
+        return False
+
+    if message.reply_to_message.from_user.id != message.bot.id:
+        return False
+
+    logger.info("handle_reply_to_kesha")
+    bot = message.bot
+
+    context = await get_recent_messages()
+
+    books = await db.get_all_books()
+    if books:
+        book_list = ", ".join(f'{book["title"]} — {book["author"]}' for book in books)
+        book_prompt = f"Список книг: {book_list}. Если пользователь спрашивает про книги — используй ТОЛЬКО из этого списка."
+    else:
+        book_prompt = "Список книг пуст. Можешь советовать любые книги."
+
+    prompt = f"""Ты Кеша. Пользователь ответил на твоё сообщение: {message.text}
+
+{book_prompt}
+
+Ответь естественно, как обычный участник чата. Будь коротким, дружелюбным.
+Не используй шаблоны. Не повторяй одну мысль.
+Если спрашивают про книги и есть список — используй его.
+Если список пуст — отвечай свободно.
+"""
+
+    response = await ask_ai(prompt, context)
+
+    if response:
+        await safe_send_message(
+            bot=bot,
+            chat_id=message.chat.id,
+            text=response,
+            reply_to_message_id=message.message_id
+        )
+        return True
+
+    return False
 
 
 async def ai_loop(bot):
