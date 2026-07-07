@@ -5,7 +5,6 @@ from triggers import trigger_manager
 from ai import (
     handle_reply_to_kesha,
     handle_kesha_mention,
-    handle_book_keywords,
     handle_all_messages,
 )
 
@@ -28,9 +27,5 @@ async def ai_router_handler(message: Message):
     if message.text and trigger_manager.check_text(message.text):
         return
 
-    # 4. Вопросы про книги
-    if await handle_book_keywords(message):
-        return
-
-    # 5. Сохраняем историю сообщений
+    # 4. Сохраняем историю сообщений
     await handle_all_messages(message)
