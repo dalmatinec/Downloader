@@ -31,5 +31,6 @@ async def handle_trigger(message: Message) -> None:
         bot=message.bot,
         chat_id=message.chat.id,
         text=texts.TRIGGER_RESPONSE_TEXT,
-        reply_markup=await get_trigger_button()
+        reply_markup=await get_trigger_button(),
+        reply_to_message_id=message.message_id  # 4. Ответ реплаем
     )
