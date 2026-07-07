@@ -19,9 +19,12 @@ async def get_trigger_button():
     )
     return builder.as_markup()
 
-@router.message(F.text.regexp(trigger_manager.pattern))
+@router.message(F.text & F.chat.type.in_({"group", "supergroup"}))
 async def handle_trigger(message: Message) -> None:
     if message.from_user.is_bot or (message.text and message.text.startswith('/')):
+        return
+
+    if not trigger_manager.check_text(message.text):
         return
 
     # 3. Логируем срабатывание
