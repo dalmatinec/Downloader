@@ -34,5 +34,3 @@ async def handle_trigger(message: Message) -> None:
         reply_markup=await get_trigger_button(),
         reply_to_message_id=message.message_id  # 4. Ответ реплаем
     )
-
-Обработчик triggers py может тут что то надо поменять хотя до этого как ты изменил все работало
