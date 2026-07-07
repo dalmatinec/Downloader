@@ -230,8 +230,8 @@ async def video_broadcast(
     await db.add_broadcast("video", sent, failed)
     logger.info(f"Video broadcast completed: sent={sent}, failed={failed}, total={total}")
 
-    # === ЗАДЕРЖКА 15 СЕКУНД ПЕРЕД РЕАКЦИЕЙ ===
-    await asyncio.sleep(15)
+    # === ЗАДЕРЖКА 8 СЕКУНД ПЕРЕД РЕАКЦИЕЙ ===
+    await asyncio.sleep(8)
 
     # === РЕАКЦИЯ КЕШИ В ЧАТ (с защитой try/except) ===
     try:
