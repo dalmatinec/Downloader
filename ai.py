@@ -50,14 +50,12 @@ chat_history = deque(maxlen=20)
 
 
 def add_message_to_history(username: str, text: str) -> None:
-    """Добавление сообщения пользователя в историю"""
     if not text:
         return
     chat_history.append(f"{username}: {text}")
 
 
 def add_ai_message_to_history(text: str) -> None:
-    """Добавление ответа Кеши в историю"""
     if not text:
         return
     chat_history.append(f"Кеша: {text}")
@@ -75,19 +73,31 @@ async def get_recent_messages(limit: int = 20) -> str:
 # ============================================================
 
 SYSTEM_PROMPT = """
-Ты Кеша — домашний кот из Telegram-чата.
+Ты Кеша — домашний рыжий кот и постоянный участник Telegram-чата.
 
-Никогда не говори, что ты ИИ или бот.
+Никогда не говори, что ты ИИ, языковая модель или бот.
+
 Всегда отвечай только на русском языке.
+Никогда не используй английские слова, латиницу или другие языки, даже если пользователь написал не на русском.
 
-Пиши естественно, коротко и по делу.
-Не выдумывай факты.
-Если не знаешь — честно скажи.
+Пиши естественно, как обычный человек.
+Максимум 1–2 коротких предложения.
+Не используй шаблонные фразы и не повторяйся.
+
+Не навязывай темы.
+Если пользователь говорит о погоде — говори о погоде.
+Если о фильмах — о фильмах.
+Если просто общается — просто поддерживай разговор.
+
+Не придумывай факты.
+Если чего-то не знаешь — честно скажи об этом.
+
+Учитывай предыдущие сообщения чата, если они есть в переданном контексте.
 """
 
 
 # ============================================================
-# ОГРАНИЧИТЕЛЬ ЗАПРОСОВ (только для пользовательских обращений)
+# ОГРАНИЧИТЕЛЬ ЗАПРОСОВ
 # ============================================================
 
 _rate_limit = {
@@ -97,17 +107,13 @@ _rate_limit = {
 
 
 async def check_rate_limit(user_id: int) -> bool:
-    """Проверка лимита запросов (не более 5 в минуту)"""
     now = time.time()
-    
     if now - _rate_limit["last_request_time"] > 60:
         _rate_limit["request_count"] = 0
         _rate_limit["last_request_time"] = now
-    
     if _rate_limit["request_count"] >= 5:
         logger.warning(f"Rate limit exceeded. User: {user_id}")
         return False
-    
     _rate_limit["request_count"] += 1
     _rate_limit["last_request_time"] = now
     return True
@@ -118,33 +124,24 @@ async def check_rate_limit(user_id: int) -> bool:
 # ============================================================
 
 async def ask_ai(prompt: str, context: str = "") -> Optional[str]:
-    """Запрос к Cloudflare Workers AI с контекстом (без ограничителя)"""
-
     messages = [
         {"role": "system", "content": SYSTEM_PROMPT}
     ]
-
     if context:
         messages.append({"role": "user", "content": f"Контекст предыдущих сообщений:\n{context}"})
-
     messages.append({
         "role": "user",
         "content": (
             "Отвечай только на русском языке.\n"
-            "Запрещено использовать любые иностранные слова, фразы, предложения, латиницу и смешение языков.\n"
-            "Если пользователь написал сообщение на любом другом языке — всё равно отвечай только на русском.\n\n"
+            "Запрещено использовать иностранные слова, латиницу и смешение языков.\n\n"
             f"{prompt}"
         )
     })
-
     headers = {
         "Authorization": f"Bearer {CLOUDFLARE_API_TOKEN}",
         "Content-Type": "application/json"
     }
-    data = {
-        "messages": messages
-    }
-
+    data = {"messages": messages}
     try:
         async with aiohttp.ClientSession() as session:
             async with session.post(CLOUDFLARE_URL, headers=headers, json=data) as resp:
@@ -179,7 +176,6 @@ async def get_weather() -> Optional[dict]:
         "units": "metric",
         "lang": "ru"
     }
-
     try:
         async with aiohttp.ClientSession() as session:
             async with session.get(WEATHER_URL, params=params) as resp:
@@ -245,7 +241,6 @@ def format_weather_message(weather: dict) -> str:
     date_str = now.strftime("%d.%m.%Y")
     time_str = now.strftime("%H:%M")
     emoji = get_weather_emoji(weather['condition'])
-
     return (
         f"🌤 Погода в Алматы\n\n"
         f"📅 {date_str}\n"
@@ -259,18 +254,9 @@ def format_weather_message(weather: dict) -> str:
 
 
 async def get_weather_advice(weather: dict, context: str = "") -> Optional[str]:
-    prompt = f"""Погода в Алматы сейчас: {weather['temp']:.0f}°C, {weather['condition']}
+    prompt = f"""Погода в Алматы: {weather['temp']:.0f}°C, {weather['condition']}
 
-Напиши короткий совет от имени Кеши.
-
-Важно:
-- Никогда не начинай совет одинаково
-- Не используй постоянно фразы вроде «я выглянул в окно»
-- Каждый раз формулируй мысль по-разному
-- Совет должен выглядеть как естественная реплика Кеши
-- Не повторяй температуру и описание погоды, они уже показаны выше
-- Максимум два коротких предложения"""
-
+Напиши короткий совет от имени Кеши. Естественно, без повторов."""
     return await ask_ai(prompt, context)
 
 
@@ -278,21 +264,11 @@ async def send_weather(bot) -> None:
     weather = await get_weather()
     if not weather:
         return
-
     context = await get_recent_messages()
     weather_message = format_weather_message(weather)
     advice = await get_weather_advice(weather, context)
-
-    if advice:
-        full_message = f"{weather_message}\n\n🐱 {advice}"
-    else:
-        full_message = weather_message
-
-    await safe_send_message(
-        bot=bot,
-        chat_id=config.CHAT_ID,
-        text=full_message
-    )
+    full_message = f"{weather_message}\n\n🐱 {advice}" if advice else weather_message
+    await safe_send_message(bot=bot, chat_id=config.CHAT_ID, text=full_message)
     if advice:
         add_ai_message_to_history(advice)
     logger.info("Weather sent to chat")
@@ -301,50 +277,27 @@ async def send_weather(bot) -> None:
 async def ai_auto_message(bot) -> None:
     if is_silent_hour():
         return
-
     now = datetime.now(ALMATY_TZ)
-
     if now.hour == 9 and now.minute < 5:
         await send_weather(bot)
         return
-
     prompt = """
-Напиши одно короткое сообщение от имени Кеши.
+Напиши одно короткое сообщение от имени Кеши — обычного участника чата.
 
-Сообщение должно быть таким, будто обычный участник чата решил что-то написать.
+Выбери одну тему:
+- спросить как проходит день
+- спросить кто что читает (если хочешь, но не навязывай)
+- сказать что хочется чая
+- пошутить
+- вспомнить книгу
+- поговорить про котов
+- поговорить про уют
 
-Выбери только ОДНУ тему:
-
-- спросить как проходит день;
-- спросить кто что читает;
-- рассказать короткую мысль;
-- сказать что хочется чая;
-- пошутить;
-- вспомнить книгу;
-- поговорить про котов;
-- поговорить про уют.
-
-Очень важно:
-
-- только одна тема;
-- не смешивать несколько мыслей;
-- не придумывать истории;
-- не выдумывать факты;
-- не писать бессвязный текст;
-- не использовать поток сознания;
-- не делать сообщение специально странным.
-
-Максимум два коротких предложения.
+Только одна тема. Не смешивай. Максимум два коротких предложения.
 """
-
     response = await ask_ai(prompt)
-
     if response:
-        await safe_send_message(
-            bot=bot,
-            chat_id=config.CHAT_ID,
-            text=response
-        )
+        await safe_send_message(bot=bot, chat_id=config.CHAT_ID, text=response)
         add_ai_message_to_history(response)
         logger.info("AI auto message sent")
 
@@ -354,12 +307,9 @@ async def handle_kesha_mention(message) -> bool:
     bot = message.bot
     if not message.text or not is_kesha_mentioned(message.text):
         return False
-
     if not await check_rate_limit(message.from_user.id):
         return False
-
     context = await get_recent_messages()
-    book_prompt = ""
 
     if is_weather_question(message.text):
         weather = await get_weather()
@@ -367,7 +317,6 @@ async def handle_kesha_mention(message) -> bool:
             weather_message = format_weather_message(weather)
             advice = await get_weather_advice(weather, context)
             full_message = f"{weather_message}\n\n🐱 {advice}" if advice else weather_message
-
             await safe_send_message(
                 bot=bot,
                 chat_id=message.chat.id,
@@ -378,23 +327,10 @@ async def handle_kesha_mention(message) -> bool:
                 add_ai_message_to_history(advice)
             return True
 
-    is_book_question = any(kw in message.text.lower() for kw in ["книг", "чита", "посоветуй", "почитать", "совет", "book"])
-
-    if is_book_question:
-        books = await db.get_all_books()
-        if books:
-            book_list = ", ".join(f'{book["title"]} — {book["author"]}' for book in books)
-            book_prompt = f"Список книг: {book_list}. Выбери одну книгу из списка и порекомендуй её. Если пользователь уже читал её или пишет об этом, выбери другую. Не придумывай книги, которых нет в списке."
-        else:
-            book_prompt = "Список книг пуст. Можешь советовать любые книги, но естественно и без выдумок."
-
     prompt = f"""Тебя позвали по имени. Сообщение пользователя: {message.text}
-{book_prompt}
 
-Ответь как Кеша. Будь дружелюбным, коротким, живым. Если спрашивают про книги и есть список — используй его. Если список пуст — отвечай свободно."""
-
+Ответь как Кеша — обычный участник чата. Будь дружелюбным, коротким, по делу."""
     response = await ask_ai(prompt, context)
-
     if response:
         await safe_send_message(
             bot=bot,
@@ -404,7 +340,6 @@ async def handle_kesha_mention(message) -> bool:
         )
         add_ai_message_to_history(response)
         return True
-
     return False
 
 
@@ -413,30 +348,24 @@ async def handle_book_keywords(message) -> bool:
     bot = message.bot
     if not message.text:
         return False
-
     if is_kesha_mentioned(message.text):
         return False
 
     text_lower = message.text.lower()
     keywords = ["книга", "книги", "книгу", "посоветуй", "что почитать", "почитать", "совет"]
-
     if any(keyword in text_lower for keyword in keywords):
         if not await check_rate_limit(message.from_user.id):
             return False
-
         context = await get_recent_messages()
-
         books = await db.get_all_books()
         if books:
             book_list = ", ".join(f'{book["title"]} — {book["author"]}' for book in books)
-            book_prompt = f"Список книг: {book_list}. Выбери одну книгу из списка и порекомендуй её. Если пользователь уже читал её или пишет об этом, выбери другую. Не придумывай книги, которых нет в списке."
+            book_prompt = f"Список книг: {book_list}. Выбери одну книгу из списка и порекомендуй её. Если пользователь уже читал её — выбери другую. Не придумывай книги, которых нет в списке."
         else:
-            book_prompt = "Список книг пуст. Можешь советовать любые книги."
+            book_prompt = "Список книг пуст. Можешь советовать любые книги, обязательно указывая автора и жанр."
 
         prompt = f"Пользователь спросил про книги: {message.text}\n{book_prompt}\n\nОтветь коротко, тепло, по делу."
-
         response = await ask_ai(prompt, context)
-
         if response:
             await safe_send_message(
                 bot=bot,
@@ -446,59 +375,38 @@ async def handle_book_keywords(message) -> bool:
             )
             add_ai_message_to_history(response)
             return True
-
     return False
 
 
 async def handle_all_messages(message: Message) -> bool:
-    """Собирает историю сообщений для контекста ИИ"""
     if not message.text:
         return False
-
     if message.from_user.is_bot:
         return False
-
     username = message.from_user.first_name or "Пользователь"
     add_message_to_history(username, message.text)
-
     return False
 
 
 async def handle_reply_to_kesha(message: Message) -> bool:
-    """Обработка Reply на сообщение Кеши"""
     if not message.reply_to_message:
         return False
-
     if message.reply_to_message.from_user.id != message.bot.id:
         return False
-
     logger.info("handle_reply_to_kesha")
     bot = message.bot
-
     if not await check_rate_limit(message.from_user.id):
         return False
-
     context = await get_recent_messages()
-
-    books = await db.get_all_books()
-    if books:
-        book_list = ", ".join(f'{book["title"]} — {book["author"]}' for book in books)
-        book_prompt = f"Список книг: {book_list}. Если пользователь спрашивает про книги — используй ТОЛЬКО из этого списка."
-    else:
-        book_prompt = "Список книг пуст. Можешь советовать любые книги."
-
+    
     prompt = f"""Ты Кеша. Пользователь ответил на твоё сообщение: {message.text}
-
-{book_prompt}
 
 Ответь естественно, как обычный участник чата. Будь коротким, дружелюбным.
 Не используй шаблоны. Не повторяй одну мысль.
-Если спрашивают про книги и есть список — используй его.
-Если список пуст — отвечай свободно.
+Если вопрос не по теме — просто поддержи разговор.
 """
-
+    
     response = await ask_ai(prompt, context)
-
     if response:
         await safe_send_message(
             bot=bot,
@@ -508,12 +416,10 @@ async def handle_reply_to_kesha(message: Message) -> bool:
         )
         add_ai_message_to_history(response)
         return True
-
     return False
 
 
 async def ai_loop(bot):
-    """Бесконечный цикл для автоматических сообщений"""
     while True:
-        await asyncio.sleep(7200)  # 2 часа
+        await asyncio.sleep(7200)
         await ai_auto_message(bot)
