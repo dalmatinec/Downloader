@@ -54,11 +54,7 @@ async def main_menu(callback: CallbackQuery) -> None:
         name=escape_html(callback.from_user.first_name)
     )
 
-    try:
-        await callback.message.delete()
-    except Exception:
-        pass
-
+    await callback.message.delete()
     await callback.message.answer_photo(
         photo=START_IMAGE,
         caption=text,
@@ -81,12 +77,20 @@ async def links_menu(callback: CallbackQuery) -> None:
         channel=config.CHANNEL_LINK,
         chat=config.CHAT_LINK
     )
-    await safe_edit_message(
-        bot=callback.bot,
-        callback=callback,
-        text=text,
-        reply_markup=get_links_kb()
-    )
+
+    if callback.message.photo:
+        await callback.message.delete()
+        await callback.message.answer(
+            text=text,
+            reply_markup=get_links_kb()
+        )
+    else:
+        await safe_edit_message(
+            bot=callback.bot,
+            callback=callback,
+            text=text,
+            reply_markup=get_links_kb()
+        )
     await callback.answer()
 
 
@@ -97,21 +101,34 @@ async def links_menu(callback: CallbackQuery) -> None:
 @router.callback_query(F.data == "books")
 async def books_list(callback: CallbackQuery) -> None:
     books = await db.get_all_books()
-    if not books:
-        await safe_edit_message(
-            bot=callback.bot,
-            callback=callback,
-            text=texts.BOOKS_EMPTY,
-            reply_markup=get_back_kb("back:main")
-        )
-        await callback.answer()
-        return
-    await safe_edit_message(
-        bot=callback.bot,
-        callback=callback,
-        text=texts.BOOKS_LIST,
-        reply_markup=get_books_kb(books)
-    )
+
+    if callback.message.photo:
+        await callback.message.delete()
+        if not books:
+            await callback.message.answer(
+                text=texts.BOOKS_EMPTY,
+                reply_markup=get_back_kb("back:main")
+            )
+        else:
+            await callback.message.answer(
+                text=texts.BOOKS_LIST,
+                reply_markup=get_books_kb(books)
+            )
+    else:
+        if not books:
+            await safe_edit_message(
+                bot=callback.bot,
+                callback=callback,
+                text=texts.BOOKS_EMPTY,
+                reply_markup=get_back_kb("back:main")
+            )
+        else:
+            await safe_edit_message(
+                bot=callback.bot,
+                callback=callback,
+                text=texts.BOOKS_LIST,
+                reply_markup=get_books_kb(books)
+            )
     await callback.answer()
 
 
@@ -191,12 +208,20 @@ async def support_menu(callback: CallbackQuery) -> None:
         vtb=config.VTB,
         tinkoff=config.TINKOFF
     )
-    await safe_edit_message(
-        bot=callback.bot,
-        callback=callback,
-        text=text,
-        reply_markup=get_support_kb()
-    )
+
+    if callback.message.photo:
+        await callback.message.delete()
+        await callback.message.answer(
+            text=text,
+            reply_markup=get_support_kb()
+        )
+    else:
+        await safe_edit_message(
+            bot=callback.bot,
+            callback=callback,
+            text=text,
+            reply_markup=get_support_kb()
+        )
     await callback.answer()
 
 
@@ -214,12 +239,20 @@ async def donators_list(callback: CallbackQuery) -> None:
     donators = await db.get_all_donators()
     donators_text = format_donators(donators)
     text = texts.DONATORS_TEXT.format(donators_list=donators_text)
-    await safe_edit_message(
-        bot=callback.bot,
-        callback=callback,
-        text=text,
-        reply_markup=get_donators_kb()
-    )
+
+    if callback.message.photo:
+        await callback.message.delete()
+        await callback.message.answer(
+            text=text,
+            reply_markup=get_donators_kb()
+        )
+    else:
+        await safe_edit_message(
+            bot=callback.bot,
+            callback=callback,
+            text=text,
+            reply_markup=get_donators_kb()
+        )
     await callback.answer()
 
 
