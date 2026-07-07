@@ -1,6 +1,6 @@
 import logging
 from aiogram import Router, F
-from aiogram.types import Message, CallbackQuery
+from aiogram.types import Message, CallbackQuery, FSInputFile
 from aiogram.filters import Command
 
 import config
@@ -26,35 +26,45 @@ logger = logging.getLogger(__name__)
 db = Database()
 router = Router()
 
+START_IMAGE = FSInputFile("images/start.jpg")
+
 
 # ============================================================
 # /START
 # ============================================================
 
-@router.message(Command("start"), F.chat.type == "private")  # только ЛС
+@router.message(Command("start"), F.chat.type == "private")
 async def start_command(message: Message) -> None:
     user = message.from_user
     await db.add_user(user.id, user.username or "")
-    await safe_send_message(
-        bot=message.bot,
-        chat_id=message.chat.id,
-        text=texts.START_TEXT.format(name=escape_html(user.first_name)),
+    await message.answer_photo(
+        photo=START_IMAGE,
+        caption=texts.START_TEXT.format(name=escape_html(user.first_name)),
         reply_markup=get_main_kb()
     )
 
 
 # ============================================================
-# ГЛАВНОЕ МЕНЮ
+# ГЛАВНОЕ МЕНЮ (ВОЗВРАТ)
 # ============================================================
 
 @router.callback_query(F.data == "back:main")
 async def main_menu(callback: CallbackQuery) -> None:
-    await safe_edit_message(
-        bot=callback.bot,
-        callback=callback,
-        text=texts.START_TEXT.format(name=escape_html(callback.from_user.first_name)),
+    text = texts.START_TEXT.format(
+        name=escape_html(callback.from_user.first_name)
+    )
+
+    try:
+        await callback.message.delete()
+    except Exception:
+        pass
+
+    await callback.message.answer_photo(
+        photo=START_IMAGE,
+        caption=text,
         reply_markup=get_main_kb()
     )
+
     await callback.answer()
 
 
@@ -189,13 +199,10 @@ async def support_menu(callback: CallbackQuery) -> None:
     )
     await callback.answer()
 
-# ---------------- ДОБАВЛЕНО ----------------
 
 @router.callback_query(F.data == "back:support")
 async def support_back(callback: CallbackQuery) -> None:
     await support_menu(callback)
-
-# -------------- КОНЕЦ ДОБАВЛЕНИЯ --------------
 
 
 # ============================================================
@@ -224,7 +231,7 @@ async def donators_list(callback: CallbackQuery) -> None:
 async def books_back(callback: CallbackQuery) -> None:
     books = await db.get_all_books()
 
-    if callback.message.photo:  # если открыта карточка с постером
+    if callback.message.photo:
         await callback.message.delete()
         await callback.message.answer(
             texts.BOOKS_EMPTY if not books else texts.BOOKS_LIST,
