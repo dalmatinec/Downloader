@@ -16,17 +16,20 @@ logger = logging.getLogger(__name__)
 class TriggerManager:
     def __init__(self):
         self.triggers = [
-            r"\bкниг\w*",
-            r"\bкниж\w*",
-            r"\bпроизведен\w*",
-            r"\bтворчеств\w*",
-            r"\bлитератур\w*",
+            r'(?i)книг[ауиейойе]?',      # книга, книги, книгу...
+            r'(?i)книж[аиуе]?',          # книжка, книжки...
+            r'(?i)почитать',
+            r'(?i)посоветуй',
+            r'(?i)посоветуете',
+            r'(?i)творчеств',
+            r'(?i)произведен',
+            r'(?i)литератур',
         ]
-
-        self.pattern = re.compile("|".join(self.triggers), re.IGNORECASE)
+        
+        self.pattern = re.compile("|".join(self.triggers))
 
     def check_text(self, text: str) -> bool:
-        if not text:
+        if not text or len(text.strip()) < 3:
             return False
         return bool(self.pattern.search(text))
 
