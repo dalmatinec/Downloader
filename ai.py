@@ -288,9 +288,11 @@ async def ai_auto_message(bot) -> None:
 - спросить как проходит день
 - спросить кто что читает (если хочешь, но не навязывай)
 - пошутить
-- вспомнить книгу
+- поговорить про книги
 - поговорить про котов
 - поговорить про уют
+- поговори про популярные фильмы
+- поговори про популярную музыку
 
 Только одна тема. Не смешивай. Максимум два коротких предложения.
 """
@@ -302,6 +304,7 @@ async def ai_auto_message(bot) -> None:
 
 
 async def handle_kesha_mention(message) -> bool:
+    """Обработка упоминания Кеши по имени с поддержкой рекомендаций книг"""
     logger.info("handle_kesha_mention")
     bot = message.bot
     if not message.text or not is_kesha_mentioned(message.text):
@@ -326,9 +329,27 @@ async def handle_kesha_mention(message) -> bool:
                 add_ai_message_to_history(advice)
             return True
 
-    prompt = f"""Тебя позвали по имени. Сообщение пользователя: {message.text}
+    # Точная проверка книжного запроса
+    is_book_question = any(kw in message.text.lower() for kw in [
+        "книга", "книги", "книжку", "книжка", 
+        "произведение", "произведения",
+        "что почитать", "посоветуй книгу", "порекомендуй книгу", "что можно почитать"
+    ])
 
-Ответь как Кеша — обычный участник чата. Будь дружелюбным, коротким, по делу."""
+    book_prompt = ""
+    if is_book_question:
+        books = await db.get_all_books()
+        if books:
+            book_list = ", ".join(f'{book["title"]} — {book["author"]}' for book in books)
+            book_prompt = f"Список книг: {book_list}. Выбери одну книгу из списка и порекомендуй её. Если пользователь уже читал её — выбери другую. Не придумывай книги, которых нет в списке."
+        else:
+            book_prompt = "Список книг пуст. Можешь советовать любые книги, обязательно указывая автора и жанр."
+
+    prompt = f"""Тебя позвали по имени. Сообщение пользователя: {message.text}
+{book_prompt}
+
+Ответь как Кеша — обычный участник чата. Будь дружелюбным, коротким, по делу. Если спрашивают про книги — рекомендую из списка или популярные книги. Если не спрашивают — просто поддерживай разговор."""
+
     response = await ask_ai(prompt, context)
     if response:
         await safe_send_message(
@@ -342,52 +363,8 @@ async def handle_kesha_mention(message) -> bool:
     return False
 
 
-async def handle_book_keywords(message) -> bool:
-    logger.info("handle_book_keywords")
-    bot = message.bot
-    if not message.text:
-        return False
-    if is_kesha_mentioned(message.text):
-        return False
-
-    text_lower = message.text.lower()
-    keywords = ["книга", "книги", "книгу", "посоветуй", "что почитать", "почитать", "совет"]
-    if any(keyword in text_lower for keyword in keywords):
-        if not await check_rate_limit(message.from_user.id):
-            return False
-        context = await get_recent_messages()
-        books = await db.get_all_books()
-        if books:
-            book_list = ", ".join(f'{book["title"]} — {book["author"]}' for book in books)
-            book_prompt = f"Список книг: {book_list}. Выбери одну книгу из списка и порекомендуй её. Если пользователь уже читал её — выбери другую. Не придумывай книги, которых нет в списке."
-        else:
-            book_prompt = "Список книг пуст. Можешь советовать любые книги, обязательно указывая автора и жанр."
-
-        prompt = f"Пользователь спросил про книги: {message.text}\n{book_prompt}\n\nОтветь коротко, тепло, по делу."
-        response = await ask_ai(prompt, context)
-        if response:
-            await safe_send_message(
-                bot=bot,
-                chat_id=message.chat.id,
-                text=response,
-                reply_to_message_id=message.message_id
-            )
-            add_ai_message_to_history(response)
-            return True
-    return False
-
-
-async def handle_all_messages(message: Message) -> bool:
-    if not message.text:
-        return False
-    if message.from_user.is_bot:
-        return False
-    username = message.from_user.first_name or "Пользователь"
-    add_message_to_history(username, message.text)
-    return False
-
-
 async def handle_reply_to_kesha(message: Message) -> bool:
+    """Обработка Reply на сообщение Кеши с поддержкой рекомендаций книг"""
     if not message.reply_to_message:
         return False
     if message.reply_to_message.from_user.id != message.bot.id:
@@ -398,10 +375,28 @@ async def handle_reply_to_kesha(message: Message) -> bool:
         return False
     context = await get_recent_messages()
 
+    # Точная проверка книжного запроса
+    is_book_question = any(kw in message.text.lower() for kw in [
+        "книга", "книги", "книжку", "книжка", 
+        "произведение", "произведения",
+        "что почитать", "посоветуй книгу", "порекомендуй книгу", "что можно почитать"
+    ])
+
+    book_prompt = ""
+    if is_book_question:
+        books = await db.get_all_books()
+        if books:
+            book_list = ", ".join(f'{book["title"]} — {book["author"]}' for book in books)
+            book_prompt = f"Список книг: {book_list}. Выбери одну книгу из списка и порекомендуй её. Если пользователь уже читал её — выбери другую. Не придумывай книги, которых нет в списке."
+        else:
+            book_prompt = "Список книг пуст. Можешь советовать любые книги, обязательно указывая автора и жанр."
+
     prompt = f"""Ты Кеша. Пользователь ответил на твоё сообщение: {message.text}
+{book_prompt}
 
 Ответь естественно, как обычный участник чата. Будь коротким, дружелюбным.
 Не используй шаблоны. Не повторяй одну мысль.
+Если спрашивают про книги — рекомендую из списка или популярные книги.
 Если вопрос не по теме — просто поддержи разговор.
 """
 
@@ -415,6 +410,16 @@ async def handle_reply_to_kesha(message: Message) -> bool:
         )
         add_ai_message_to_history(response)
         return True
+    return False
+
+
+async def handle_all_messages(message: Message) -> bool:
+    if not message.text:
+        return False
+    if message.from_user.is_bot:
+        return False
+    username = message.from_user.first_name or "Пользователь"
+    add_message_to_history(username, message.text)
     return False
 
 
