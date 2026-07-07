@@ -55,7 +55,7 @@ SUPPORT_TEXT = (
     "💳 Kaspi (visa): <code>{kaspi}</code>\n"
     "💳 Банк ЦентрКредит: <code>{centerkredit}</code>\n"
     "💳 Freedom Bank: <code>{freedom}</code>\n"
-    "💳 PayPal: <a href='{paypal}'>{paypal}</a>\n"
+    "💳 PayPal: <a href='https://paypal.me/vashemur'>paypal.me/vashemur</a>\n"
     "💳 Сбер: <code>{sber}</code>\n"
     "💳 ВТБ: <code>{vtb}</code>\n"
     "💳 Тинькофф: <code>{tinkoff}</code>"
