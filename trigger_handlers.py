@@ -1,65 +1,15 @@
-import re
-import logging
-
-from aiogram import Dispatcher, F
+import logging  # 1. Импорт
+from aiogram import Router, F
 from aiogram.types import Message
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
 import config
 import texts
+from triggers import trigger_manager
 from utils import safe_send_message
 
-
-logger = logging.getLogger(__name__)
-
-
-class TriggerManager:
-    def __init__(self):
-        self.triggers = [
-            r'книг[ауиейойе]?',
-            r'книж[аиуе]?',
-            r'почитать',
-            r'посоветуй',
-            r'посоветуете',
-            r'творчеств',
-            r'произведен',
-            r'литератур',
-        ]
-        
-        self.pattern = re.compile("|".join(self.triggers), re.IGNORECASE)
-
-    def check_text(self, text: str) -> bool:
-        if not text or len(text.strip()) < 3:
-            return False
-        return bool(self.pattern.search(text))
-
-
-trigger_manager = TriggerManager()
-
-
-async def handle_message(message: Message) -> None:
-    if not message.text:
-        return
-
-    if message.from_user.is_bot:
-        return
-
-    if message.text.startswith("/"):
-        return
-
-    if not trigger_manager.check_text(message.text):
-        return
-
-    logger.info(f"Сработал триггер: {message.text[:60]}")
-
-    await safe_send_message(
-        bot=message.bot,
-        chat_id=message.chat.id,
-        text=texts.TRIGGER_RESPONSE_TEXT,
-        reply_markup=await get_trigger_button(),
-        reply_to_message_id=message.message_id
-    )
-
+logger = logging.getLogger(__name__)  # 2. Инициализация логгера
+router = Router()
 
 async def get_trigger_button():
     builder = InlineKeyboardBuilder()
@@ -69,9 +19,20 @@ async def get_trigger_button():
     )
     return builder.as_markup()
 
+@router.message(F.text.regexp(trigger_manager.pattern))
+async def handle_trigger(message: Message) -> None:
+    if message.from_user.is_bot or (message.text and message.text.startswith('/')):
+        return
 
-def register_trigger_handlers(dp: Dispatcher) -> None:
-    dp.message.register(
-        handle_message,
-        F.chat.type.in_({"group", "supergroup"})
+    # 3. Логируем срабатывание
+    logger.info(f"Сработал триггер для пользователя {message.from_user.id}: {message.text[:30]}")
+
+    await safe_send_message(
+        bot=message.bot,
+        chat_id=message.chat.id,
+        text=texts.TRIGGER_RESPONSE_TEXT,
+        reply_markup=await get_trigger_button(),
+        reply_to_message_id=message.message_id  # 4. Ответ реплаем
     )
+
+Обработчик triggers py может тут что то надо поменять хотя до этого как ты изменил все работало
