@@ -15,23 +15,23 @@ logger = logging.getLogger(__name__)
 
 class TriggerManager:
     def __init__(self):
-        self.triggers = [
-            r'книг[ауиейойе]?',
-            r'книж[аиуе]?',
-            r'почитать',
-            r'посоветуй',
-            r'посоветуете',
-            r'творчеств',
-            r'произведен',
-            r'литератур',
+        # Главные ключевые слова + склонения
+        self.keywords = [
+            "книга", "книги", "книгу", "книг", "книжка", "книжки", "книжку",
+            "произведение", "произведения", "произведений", "произведению",
+            "творчество", "творчества", "творчеству"
         ]
-        
-        self.pattern = re.compile("|".join(self.triggers), re.IGNORECASE)
 
     def check_text(self, text: str) -> bool:
         if not text or len(text.strip()) < 3:
             return False
-        return bool(self.pattern.search(text))
+        
+        text_lower = text.lower()
+        
+        for word in self.keywords:
+            if word in text_lower:
+                return True
+        return False
 
 
 trigger_manager = TriggerManager()
@@ -50,7 +50,9 @@ async def handle_message(message: Message) -> None:
     if not trigger_manager.check_text(message.text):
         return
 
-    logger.info(f"Сработал триггер: {message.text[:60]}")
+    logger.info(
+        f"Сработал триггер для пользователя {message.from_user.id}: {message.text[:50]}"
+    )
 
     await safe_send_message(
         bot=message.bot,
