@@ -50,9 +50,7 @@ async def handle_message(message: Message) -> None:
     if not trigger_manager.check_text(message.text):
         return
 
-    logger.info(
-        f"Сработал триггер для пользователя {message.from_user.id}: {message.text[:50]}"
-    )
+    logger.info(f"Сработал триггер: {message.text[:60]}")
 
     await safe_send_message(
         bot=message.bot,
