@@ -1,9 +1,9 @@
 BOT_TOKEN = ""
 ADMIN_ID =   # Список администраторов
 
-BOT_USERNAME = "@KeshaBot"
-CHANNEL_ID = -1001234567890
-CHAT_ID = -1004480019939
+BOT_USERNAME = "@"
+CHANNEL_ID = 
+CHAT_ID = 
 
 # Основные ссылки
 CHANNEL_LINK = "https://t.me/vashemurlichestvo"
@@ -23,12 +23,12 @@ VK_LINK = "https://vk.com/vashemur"
 PAYPAL_LINK = "https://www.paypal.com/paypalme/vashemur"
 
 # Реквизиты
-KASPI_VISA = "4400 4303 6627 7470 (Виталий С.)"
+KASPI_VISA = "+77082701266 (Виталий С.)"
 BANK_CENTERKREDIT = "4899 9333 7443 8883 (Любовь С.)"
-FREEDOM_BANK = "4002 8900 4964 4242 (Виталий С.)"
-SBER = "4276 4412 0202 5651 (Виталий Юрьевич С.)"
+FREEDOM_BANK = "4002 8900 4964 4242 VITALII SIROSTANOV"
+BCC (Visa) = "4899 9333 7443 8883 LIUBOV SIROSTANOVA"
 VTB = "2200 2488 1548 7904 (Виталий Юрьевич С.)"
-TINKOFF = "5536 9140 1530 4763 (Виталий Юрьевич С.)"
+TINKOFF & VTB = "+79513707713"
 PAYPAL = "https://www.paypal.com/paypalme/vashemur"
 
 # Почта для вопросов
