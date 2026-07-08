@@ -61,6 +61,7 @@ async def main() -> None:
     dp.include_router(admin_router)
     dp.include_router(user_router)
     dp.include_router(ai_router)
+    dp.include_router(react_router)
     logger.info("✅ Все роутеры подключены")
 
     # Установка команд
