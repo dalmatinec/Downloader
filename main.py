@@ -68,9 +68,6 @@ async def main() -> None:
     await set_bot_commands(bot)
     logger.info("✅ Команды бота установлены")
 
-    # Первое сообщение сразу после запуска
-    await ai_auto_message(bot)
-
     # Запуск AI-цикла каждые 2 часа
     asyncio.create_task(ai_loop(bot))
     logger.info("✅ AI-цикл запущен")
