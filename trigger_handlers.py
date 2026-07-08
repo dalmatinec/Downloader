@@ -2,6 +2,7 @@ import logging  # 1. Импорт
 from aiogram import Router, F
 from aiogram.types import Message
 from aiogram.utils.keyboard import InlineKeyboardBuilder
+from aiogram.filters import BaseFilter
 
 import config
 import texts
@@ -11,6 +12,16 @@ from utils import safe_send_message
 logger = logging.getLogger(__name__)  # 2. Инициализация логгера
 router = Router()
 
+
+class TriggerFilter(BaseFilter):
+    async def __call__(self, message: Message) -> bool:
+        return (
+            message.chat.type in {"group", "supergroup"}
+            and bool(message.text)
+            and trigger_manager.check_text(message.text)
+        )
+
+
 async def get_trigger_button():
     builder = InlineKeyboardBuilder()
     builder.button(
@@ -19,12 +30,10 @@ async def get_trigger_button():
     )
     return builder.as_markup()
 
-@router.message(F.text & F.chat.type.in_({"group", "supergroup"}))
+
+@router.message(TriggerFilter())
 async def handle_trigger(message: Message) -> None:
     if message.from_user.is_bot or (message.text and message.text.startswith('/')):
-        return
-
-    if not trigger_manager.check_text(message.text):
         return
 
     # 3. Логируем срабатывание
