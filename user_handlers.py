@@ -201,12 +201,10 @@ async def download_book(callback: CallbackQuery) -> None:
 async def support_menu(callback: CallbackQuery) -> None:
     text = texts.SUPPORT_TEXT.format(
         kaspi=config.KASPI_VISA,
-        centerkredit=config.BANK_CENTERKREDIT,
-        freedom=config.FREEDOM_BANK,
-        paypal=config.PAYPAL_LINK,
-        sber=config.SBER,
-        vtb=config.VTB,
-        tinkoff=config.TINKOFF
+        freedom=config.FREEDOM_VISA,
+        bcc=config.BCC_VISA,
+        ru_phone=config.RU_PHONE,
+        paypal=config.PAYPAL,
     )
 
     if callback.message.photo:
@@ -222,6 +220,7 @@ async def support_menu(callback: CallbackQuery) -> None:
             text=text,
             reply_markup=get_support_kb()
         )
+
     await callback.answer()
 
 
