@@ -27,8 +27,7 @@ KASPI_VISA = "+77082701266 (Виталий С.)"
 BANK_CENTERKREDIT = "4899 9333 7443 8883 (Любовь С.)"
 FREEDOM_BANK = "4002 8900 4964 4242 VITALII SIROSTANOV"
 BCC (Visa) = "4899 9333 7443 8883 LIUBOV SIROSTANOVA"
-VTB = "2200 2488 1548 7904 (Виталий Юрьевич С.)"
-TINKOFF & VTB = "+79513707713"
+TINKOFF_VTB = "+79513707713"
 PAYPAL = "https://www.paypal.com/paypalme/vashemur"
 
 # Почта для вопросов
