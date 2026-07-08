@@ -23,11 +23,15 @@ VK_LINK = "https://vk.com/vashemur"
 PAYPAL_LINK = "https://www.paypal.com/paypalme/vashemur"
 
 # Реквизиты
-KASPI_VISA = "+77082701266 (Виталий С.)"
-BANK_CENTERKREDIT = "4899 9333 7443 8883 (Любовь С.)"
-FREEDOM_BANK = "4002 8900 4964 4242 VITALII SIROSTANOV"
-BCC (Visa) = "4899 9333 7443 8883 LIUBOV SIROSTANOVA"
-TINKOFF_VTB = "+79513707713"
+
+KASPI_VISA = "+77082701266"
+
+FREEDOM_VISA = "4002 8900 4964 4242\nVITALII SIROSTANOV"
+
+BCC_VISA = "4899 9333 7443 8883\nLIUBOV SIROSTANOVA"
+
+RU_PHONE = "+79513707713"
+
 PAYPAL = "https://www.paypal.com/paypalme/vashemur"
 
 # Почта для вопросов
