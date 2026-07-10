@@ -36,3 +36,7 @@ PAYPAL = "https://www.paypal.com/paypalme/vashemur"
 
 # Почта для вопросов
 EMAIL = "antibooznik@gmail.com"
+
+# Технические работы
+MAINTENANCE_MODE = False
+MAINTENANCE_MESSAGE = "🔧 Ведутся технические работы. Бот временно недоступен. Загляните позже!"
