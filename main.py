@@ -17,6 +17,7 @@ from admin_handlers import router as admin_router
 from user_handlers import router as user_router
 from trigger_handlers import router as trigger_router
 from ai_handlers import router as ai_router
+from setting_handlers import router as settings_router
 
 
 # Настройка логирования
