@@ -43,6 +43,9 @@ def load_settings() -> dict:
             "INSTAGRAM_LINK": config.INSTAGRAM_LINK,
             "INSTAGRAM_VITALIY": config.INSTAGRAM_VITALIY,
             "TIKTOK_LYUBASHKA": config.TIKTOK_LYUBASHKA,
+            "FACEBOOK_LINK": config.FACEBOOK_LINK,
+            "TWITCH_LINK": config.TWITCH_LINK,
+            "VK_LINK": config.VK_LINK,
             "KASPI_VISA": config.KASPI_VISA,
             "FREEDOM_VISA": config.FREEDOM_VISA,
             "BCC_VISA": config.BCC_VISA,
@@ -173,6 +176,9 @@ async def view_all_links(callback: CallbackQuery) -> None:
     text += f"📷 Instagram: {settings.get('INSTAGRAM_LINK') or 'не установлен'}\n"
     text += f"📷 Instagram Виталия: {settings.get('INSTAGRAM_VITALIY') or 'не установлен'}\n"
     text += f"🎵 TikTok Любашки: {settings.get('TIKTOK_LYUBASHKA') or 'не установлен'}\n"
+    text += f"📘 Facebook: {settings.get('FACEBOOK_LINK') or 'не установлен'}\n"
+    text += f"🎮 Twitch: {settings.get('TWITCH_LINK') or 'не установлен'}\n"
+    text += f"🌐 VK: {settings.get('VK_LINK') or 'не установлен'}\n"
     text += f"📧 Email: {settings.get('EMAIL') or 'не установлен'}"
     await safe_edit_message(
         bot=callback.bot,
@@ -256,6 +262,21 @@ async def edit_instagram_vitaliy(callback: CallbackQuery, state: FSMContext) -> 
 @router.callback_query(F.data == "settings:link:tiktok_lyubashka")
 async def edit_tiktok_lyubashka(callback: CallbackQuery, state: FSMContext) -> None:
     await start_edit(callback, state, "TIKTOK_LYUBASHKA", "🎵 Введите новую ссылку на TikTok Любашки")
+
+
+@router.callback_query(F.data == "settings:link:facebook")
+async def edit_facebook(callback: CallbackQuery, state: FSMContext) -> None:
+    await start_edit(callback, state, "FACEBOOK_LINK", "📘 Введите новую ссылку на Facebook")
+
+
+@router.callback_query(F.data == "settings:link:twitch")
+async def edit_twitch(callback: CallbackQuery, state: FSMContext) -> None:
+    await start_edit(callback, state, "TWITCH_LINK", "🎮 Введите новую ссылку на Twitch")
+
+
+@router.callback_query(F.data == "settings:link:vk")
+async def edit_vk(callback: CallbackQuery, state: FSMContext) -> None:
+    await start_edit(callback, state, "VK_LINK", "🌐 Введите новую ссылку на VK")
 
 
 @router.callback_query(F.data == "settings:link:email")
