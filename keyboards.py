@@ -24,8 +24,48 @@ def get_main_kb() -> InlineKeyboardMarkup:
 
 
 def get_links_kb() -> InlineKeyboardMarkup:
-    """Все наши ссылки"""
-    return get_back_kb("back:main")
+    """Все наши ссылки (кнопками)"""
+    from setting_handlers import load_settings
+    settings = load_settings()
+    
+    builder = InlineKeyboardBuilder()
+    
+    # Ряд 1: YouTube
+    builder.add(
+        InlineKeyboardButton(text="▶️ YouTube", url=settings.get("YOUTUBE_LINK", ""))
+    )
+    
+    # Ряд 2: Instagram
+    builder.add(
+        InlineKeyboardButton(text="📷 IG Виталий", url=settings.get("INSTAGRAM_VITALIY", "")),
+        InlineKeyboardButton(text="📷 IG Любашки", url=settings.get("INSTAGRAM_LYUBASHKA", ""))
+    )
+    
+    # Ряд 3: TikTok
+    builder.add(
+        InlineKeyboardButton(text="🎵 TikTok Виталий", url=settings.get("TIKTOK_VITALIY", "")),
+        InlineKeyboardButton(text="🎵 TikTok Любашки", url=settings.get("TIKTOK_LYUBASHKA", ""))
+    )
+    
+    # Ряд 4: Facebook и VK
+    builder.add(
+        InlineKeyboardButton(text="📘 Facebook", url=settings.get("FACEBOOK_LINK", "")),
+        InlineKeyboardButton(text="🌐 VK", url=settings.get("VK_LINK", ""))
+    )
+    
+    # Ряд 5: Twitch и Email
+    builder.add(
+        InlineKeyboardButton(text="🎮 Twitch", url=settings.get("TWITCH_LINK", "")),
+        InlineKeyboardButton(text="📧 Email", url=settings.get("EMAIL", ""))
+    )
+    
+    # Ряд 6: Назад (одна)
+    builder.add(
+        InlineKeyboardButton(text=texts.BACK_BUTTON, callback_data="back:main")
+    )
+    
+    builder.adjust(1, 2, 2, 2, 2, 1)
+    return builder.as_markup()
 
 
 def get_books_kb(books: list) -> InlineKeyboardMarkup:
@@ -116,38 +156,49 @@ def get_admin_settings_kb() -> InlineKeyboardMarkup:
 
 
 def get_admin_settings_links_kb() -> InlineKeyboardMarkup:
-    """Меню ссылок (админ)"""
+    """Меню ссылок (админ) — такой же порядок как в get_links_kb()"""
     builder = InlineKeyboardBuilder()
+    
+    # Ряд 1: YouTube
     builder.add(
-        InlineKeyboardButton(text="📢 Канал", callback_data="settings:link:channel"),
-        InlineKeyboardButton(text="💬 Чат", callback_data="settings:link:chat")
+        InlineKeyboardButton(text="▶️ YouTube", callback_data="settings:link:youtube")
     )
+    
+    # Ряд 2: Instagram
     builder.add(
-        InlineKeyboardButton(text="📺 YouTube", callback_data="settings:link:youtube"),
-        InlineKeyboardButton(text="🎵 TikTok", callback_data="settings:link:tiktok")
+        InlineKeyboardButton(text="📷 IG Виталий", callback_data="settings:link:instagram_vitaliy"),
+        InlineKeyboardButton(text="📷 IG Любашки", callback_data="settings:link:instagram_lyubashka")
     )
+    
+    # Ряд 3: TikTok
     builder.add(
-        InlineKeyboardButton(text="📷 Instagram", callback_data="settings:link:instagram"),
-        InlineKeyboardButton(text="📷 Instagram Виталия", callback_data="settings:link:instagram_vitaliy")
+        InlineKeyboardButton(text="🎵 TikTok Виталий", callback_data="settings:link:tiktok_vitaliy"),
+        InlineKeyboardButton(text="🎵 TikTok Любашки", callback_data="settings:link:tiktok_lyubashka")
     )
+    
+    # Ряд 4: Facebook и VK
     builder.add(
-        InlineKeyboardButton(text="🎵 TikTok Любашки", callback_data="settings:link:tiktok_lyubashka"),
-        InlineKeyboardButton(text="📘 Facebook", callback_data="settings:link:facebook")
-    )
-    builder.add(
-        InlineKeyboardButton(text="🎮 Twitch", callback_data="settings:link:twitch"),
+        InlineKeyboardButton(text="📘 Facebook", callback_data="settings:link:facebook"),
         InlineKeyboardButton(text="🌐 VK", callback_data="settings:link:vk")
     )
+    
+    # Ряд 5: Twitch и Email
     builder.add(
+        InlineKeyboardButton(text="🎮 Twitch", callback_data="settings:link:twitch"),
         InlineKeyboardButton(text="📧 Email", callback_data="settings:link:email")
     )
+    
+    # Ряд 6: Показать все
     builder.add(
         InlineKeyboardButton(text="👁 Показать все", callback_data="settings:link:view_all")
     )
+    
+    # Ряд 7: Назад (одна)
     builder.add(
         InlineKeyboardButton(text=texts.BACK_BUTTON, callback_data="back:admin:settings")
     )
-    builder.adjust(2)
+    
+    builder.adjust(1, 2, 2, 2, 2, 1, 1)
     return builder.as_markup()
 
 
