@@ -192,10 +192,13 @@ async def download_book(callback: CallbackQuery) -> None:
         await callback.answer(texts.BOOK_DOWNLOAD_SUCCESS)
         
         # === ОТПРАВКА БЛАГОДАРНОСТИ ===
-        await send_book_thanks(
-            bot=callback.bot,
-            chat_id=callback.from_user.id
-        )
+        try:
+            await send_book_thanks(
+                bot=callback.bot,
+                chat_id=callback.from_user.id
+            )
+        except Exception as e:
+            logger.error(f"Book thanks error: {e}")
         
     except Exception as e:
         logger.error(f"Download error for user {callback.from_user.id}: {e}")
