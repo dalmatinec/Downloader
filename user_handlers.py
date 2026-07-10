@@ -262,6 +262,20 @@ async def donators_list(callback: CallbackQuery) -> None:
 
 
 # ============================================================
+# ПОКАЗАТЬ EMAIL
+# ============================================================
+
+@router.callback_query(F.data == "show_email")
+async def show_email(callback: CallbackQuery):
+    from setting_handlers import load_settings
+    settings = load_settings()
+    await callback.answer()
+    await callback.message.answer(
+        f"📧 Email для связи:\n\n<code>{settings.get('EMAIL')}</code>"
+    )
+
+
+# ============================================================
 # НАЗАД К КНИГАМ
 # ============================================================
 
