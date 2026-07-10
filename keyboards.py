@@ -89,7 +89,109 @@ def get_admin_kb() -> InlineKeyboardMarkup:
         InlineKeyboardButton(text=texts.ADMIN_STATS_BUTTON, callback_data="admin:stats")
     )
     builder.add(
+        InlineKeyboardButton(text="⚙️ Настройки", callback_data="admin:settings")
+    )
+    builder.add(
         InlineKeyboardButton(text=texts.BACK_BUTTON, callback_data="back:main")
+    )
+    builder.adjust(1)
+    return builder.as_markup()
+
+
+def get_admin_settings_kb() -> InlineKeyboardMarkup:
+    """Меню настроек (админ)"""
+    builder = InlineKeyboardBuilder()
+    builder.add(
+        InlineKeyboardButton(text="🔗 Ссылки", callback_data="admin:settings:links"),
+        InlineKeyboardButton(text="💳 Реквизиты", callback_data="admin:settings:payments")
+    )
+    builder.add(
+        InlineKeyboardButton(text="🔧 Технические работы", callback_data="admin:settings:maintenance")
+    )
+    builder.add(
+        InlineKeyboardButton(text=texts.BACK_BUTTON, callback_data="back:admin")
+    )
+    builder.adjust(2)
+    return builder.as_markup()
+
+
+def get_admin_settings_links_kb() -> InlineKeyboardMarkup:
+    """Меню ссылок (админ)"""
+    builder = InlineKeyboardBuilder()
+    builder.add(
+        InlineKeyboardButton(text="📢 Канал", callback_data="settings:link:channel"),
+        InlineKeyboardButton(text="💬 Чат", callback_data="settings:link:chat")
+    )
+    builder.add(
+        InlineKeyboardButton(text="📺 YouTube", callback_data="settings:link:youtube"),
+        InlineKeyboardButton(text="🎵 TikTok", callback_data="settings:link:tiktok")
+    )
+    builder.add(
+        InlineKeyboardButton(text="📷 Instagram", callback_data="settings:link:instagram"),
+        InlineKeyboardButton(text="📷 Instagram Виталия", callback_data="settings:link:instagram_vitaliy")
+    )
+    builder.add(
+        InlineKeyboardButton(text="🎵 TikTok Любашки", callback_data="settings:link:tiktok_lyubashka"),
+        InlineKeyboardButton(text="📘 Facebook", callback_data="settings:link:facebook")
+    )
+    builder.add(
+        InlineKeyboardButton(text="🎮 Twitch", callback_data="settings:link:twitch"),
+        InlineKeyboardButton(text="🌐 VK", callback_data="settings:link:vk")
+    )
+    builder.add(
+        InlineKeyboardButton(text="📧 Email", callback_data="settings:link:email")
+    )
+    builder.add(
+        InlineKeyboardButton(text="👁 Показать все", callback_data="settings:link:view_all")
+    )
+    builder.add(
+        InlineKeyboardButton(text=texts.BACK_BUTTON, callback_data="back:admin:settings")
+    )
+    builder.adjust(2)
+    return builder.as_markup()
+
+
+def get_admin_settings_payments_kb() -> InlineKeyboardMarkup:
+    """Меню реквизитов (админ)"""
+    builder = InlineKeyboardBuilder()
+    builder.add(
+        InlineKeyboardButton(text="🟢 Kaspi", callback_data="settings:payment:kaspi"),
+        InlineKeyboardButton(text="💳 Freedom", callback_data="settings:payment:freedom")
+    )
+    builder.add(
+        InlineKeyboardButton(text="🏦 BCC", callback_data="settings:payment:bcc"),
+        InlineKeyboardButton(text="📱 РФ номер", callback_data="settings:payment:ru_phone")
+    )
+    builder.add(
+        InlineKeyboardButton(text="💙 PayPal", callback_data="settings:payment:paypal")
+    )
+    builder.add(
+        InlineKeyboardButton(text="👁 Показать все", callback_data="settings:payment:view_all")
+    )
+    builder.add(
+        InlineKeyboardButton(text=texts.BACK_BUTTON, callback_data="back:admin:settings")
+    )
+    builder.adjust(2)
+    return builder.as_markup()
+
+
+def get_admin_settings_maintenance_kb(mode: bool) -> InlineKeyboardMarkup:
+    """Меню технических работ (админ)"""
+    builder = InlineKeyboardBuilder()
+    builder.add(
+        InlineKeyboardButton(
+            text="🔴 Включить" if not mode else "🟢 Выключить",
+            callback_data="settings:maintenance:toggle"
+        )
+    )
+    builder.add(
+        InlineKeyboardButton(
+            text="✏️ Изменить сообщение",
+            callback_data="settings:maintenance:message"
+        )
+    )
+    builder.add(
+        InlineKeyboardButton(text=texts.BACK_BUTTON, callback_data="back:admin:settings")
     )
     builder.adjust(1)
     return builder.as_markup()
