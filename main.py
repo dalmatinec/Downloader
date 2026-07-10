@@ -17,6 +17,7 @@ from admin_handlers import router as admin_router
 from user_handlers import router as user_router
 from trigger_handlers import router as trigger_router
 from ai_handlers import router as ai_router
+from react import router as react_router
 from setting_handlers import router as settings_router
 
 
@@ -63,6 +64,7 @@ async def main() -> None:
     dp.include_router(user_router)
     dp.include_router(ai_router)
     dp.include_router(react_router)
+    dp.include_router(settings_router)
     logger.info("✅ Все роутеры подключены")
 
     # Установка команд
