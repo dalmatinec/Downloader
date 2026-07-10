@@ -21,6 +21,8 @@ from utils import (
     escape_html,
     format_donators
 )
+from support import send_book_thanks
+
 
 logger = logging.getLogger(__name__)
 db = Database()
@@ -188,6 +190,13 @@ async def download_book(callback: CallbackQuery) -> None:
             caption=texts.BOOK_DOWNLOADED.format(title=escape_html(book['title']))
         )
         await callback.answer(texts.BOOK_DOWNLOAD_SUCCESS)
+        
+        # === ОТПРАВКА БЛАГОДАРНОСТИ ===
+        await send_book_thanks(
+            bot=callback.bot,
+            chat_id=callback.from_user.id
+        )
+        
     except Exception as e:
         logger.error(f"Download error for user {callback.from_user.id}: {e}")
         await callback.answer(texts.BOOK_DOWNLOAD_ERROR)
