@@ -30,42 +30,40 @@ def get_links_kb() -> InlineKeyboardMarkup:
     
     builder = InlineKeyboardBuilder()
     
-    # Ряд 1: YouTube
-    builder.add(
-        InlineKeyboardButton(text="▶️ YouTube", url=settings.get("YOUTUBE_LINK", ""))
-    )
+    # YouTube
+    if settings.get("YOUTUBE_LINK"):
+        builder.add(InlineKeyboardButton(text="▶️ YouTube", url=settings.get("YOUTUBE_LINK")))
     
-    # Ряд 2: Instagram
-    builder.add(
-        InlineKeyboardButton(text="📷 IG Виталий", url=settings.get("INSTAGRAM_VITALIY", "")),
-        InlineKeyboardButton(text="📷 IG Любашки", url=settings.get("INSTAGRAM_LYUBASHKA", ""))
-    )
+    # Instagram
+    if settings.get("INSTAGRAM_VITALIY"):
+        builder.add(InlineKeyboardButton(text="📷 IG Виталий", url=settings.get("INSTAGRAM_VITALIY")))
+    if settings.get("INSTAGRAM_LYUBASHKA"):
+        builder.add(InlineKeyboardButton(text="📷 IG Любашки", url=settings.get("INSTAGRAM_LYUBASHKA")))
     
-    # Ряд 3: TikTok
-    builder.add(
-        InlineKeyboardButton(text="🎵 TikTok Виталий", url=settings.get("TIKTOK_VITALIY", "")),
-        InlineKeyboardButton(text="🎵 TikTok Любашки", url=settings.get("TIKTOK_LYUBASHKA", ""))
-    )
+    # TikTok
+    if settings.get("TIKTOK_VITALIY"):
+        builder.add(InlineKeyboardButton(text="🎵 TikTok Виталий", url=settings.get("TIKTOK_VITALIY")))
+    if settings.get("TIKTOK_LYUBASHKA"):
+        builder.add(InlineKeyboardButton(text="🎵 TikTok Любашки", url=settings.get("TIKTOK_LYUBASHKA")))
     
-    # Ряд 4: Facebook и VK
-    builder.add(
-        InlineKeyboardButton(text="📘 Facebook", url=settings.get("FACEBOOK_LINK", "")),
-        InlineKeyboardButton(text="🌐 VK", url=settings.get("VK_LINK", ""))
-    )
+    # Facebook
+    if settings.get("FACEBOOK_LINK"):
+        builder.add(InlineKeyboardButton(text="📘 Facebook", url=settings.get("FACEBOOK_LINK")))
     
-    # Ряд 5: Twitch и Email
-    builder.add(
-        InlineKeyboardButton(text="🎮 Twitch", url=settings.get("TWITCH_LINK", "")),
-        InlineKeyboardButton(text="📧 Email", url=settings.get("EMAIL", ""))
-    )
+    # VK
+    if settings.get("VK_LINK"):
+        builder.add(InlineKeyboardButton(text="🌐 VK", url=settings.get("VK_LINK")))
     
-    # Ряд 6: Назад (одна)
-    builder.add(
-        InlineKeyboardButton(text=texts.BACK_BUTTON, callback_data="back:main")
-    )
+    # Twitch
+    if settings.get("TWITCH_LINK"):
+        builder.add(InlineKeyboardButton(text="🎮 Twitch", url=settings.get("TWITCH_LINK")))
     
-    builder.adjust(1, 2, 2, 2, 2, 1)
-    return builder.as_markup()
+    # Email
+    if settings.get("EMAIL"):
+        builder.add(InlineKeyboardButton(text="📧 Email", url=settings.get("EMAIL")))
+    
+    # Назад
+    builder.add(InlineKeyboardButton(text=texts.BACK_BUTTON, callback_data="back:main"))
 
 
 def get_books_kb(books: list) -> InlineKeyboardMarkup:
