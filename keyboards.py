@@ -54,10 +54,8 @@ def get_links_kb() -> InlineKeyboardMarkup:
     # Ряд 5: Twitch и Email (две кнопки)
     if settings.get("TWITCH_LINK"):
         builder.add(InlineKeyboardButton(text="🎮 Twitch", url=settings.get("TWITCH_LINK")))
-
-builder.add(
-    InlineKeyboardButton(text="📧 Email", callback_data="show_email")
-)
+    if settings.get("EMAIL"):
+        builder.add(InlineKeyboardButton(text="📧 Email", callback_data="show_email"))
 
     # Ряд 6: Назад (одна кнопка)
     builder.add(InlineKeyboardButton(text=texts.BACK_BUTTON, callback_data="back:main"))
