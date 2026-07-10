@@ -72,13 +72,7 @@ async def main_menu(callback: CallbackQuery) -> None:
 
 @router.callback_query(F.data == "links")
 async def links_menu(callback: CallbackQuery) -> None:
-    text = texts.LINKS_TEXT.format(
-        youtube=config.YOUTUBE_LINK,
-        tiktok=config.TIKTOK_LINK,
-        instagram=config.INSTAGRAM_LINK,
-        channel=config.CHANNEL_LINK,
-        chat=config.CHAT_LINK
-    )
+    text = texts.LINKS_TEXT
 
     if callback.message.photo:
         await callback.message.delete()
@@ -190,7 +184,7 @@ async def download_book(callback: CallbackQuery) -> None:
             caption=texts.BOOK_DOWNLOADED.format(title=escape_html(book['title']))
         )
         await callback.answer(texts.BOOK_DOWNLOAD_SUCCESS)
-        
+
         # === ОТПРАВКА БЛАГОДАРНОСТИ ===
         try:
             await send_book_thanks(
@@ -199,7 +193,7 @@ async def download_book(callback: CallbackQuery) -> None:
             )
         except Exception as e:
             logger.error(f"Book thanks error: {e}")
-        
+
     except Exception as e:
         logger.error(f"Download error for user {callback.from_user.id}: {e}")
         await callback.answer(texts.BOOK_DOWNLOAD_ERROR)
