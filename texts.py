@@ -39,12 +39,7 @@ START_TEXT = (
 
 LINKS_TEXT = (
     "🌐 Наши социальные сети\n\n"
-    "Нажмите на название, чтобы перейти:\n\n"
-    "▶ <a href='{youtube}'>YouTube</a>\n"
-    "🎵 <a href='{tiktok}'>TikTok</a>\n"
-    "📷 <a href='{instagram}'>Instagram</a>\n"
-    "📢 <a href='{channel}'>Telegram канал</a>\n"
-    "💬 <a href='{chat}'>Telegram чат</a>"
+    "Выберите нужную соцсеть:"
 )
 
 SUPPORT_TEXT = (
