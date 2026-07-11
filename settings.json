@@ -1,15 +1,5 @@
+// settings.json
 {
-    "CHANNEL_LINK": "https://t.me/vashemurlichestvo",
-    "CHAT_LINK": "https://t.me/vashemurlichestvo",
-    "YOUTUBE_LINK": "https://www.youtube.com/@vashemurlichestvo",
-    "INSTAGRAM_VITALIY": "https://instagram.com/sircatche",
-    "INSTAGRAM_LYUBASHKA": "https://instagram.com/vashemur",
-    "TIKTOK_VITALIY": "https://tiktok.com/@kindcatman22",
-    "TIKTOK_LYUBASHKA": "https://tiktok.com/@user1520017034745",
-    "FACEBOOK_LINK": "https://facebook.com/vitalysirostanov",
-    "VK_LINK": "https://vk.com/vashemur",
-    "TWITCH_LINK": "https://twitch.tv/catman_kz",
-    "EMAIL": "antibooznik@gmail.com",
     "KASPI_VISA": "+77082701266",
     "FREEDOM_VISA": "4002 8900 4964 4242\nVITALII SIROSTANOV",
     "BCC_VISA": "4899 9333 7443 8883\nLIUBOV SIROSTANOVA",
