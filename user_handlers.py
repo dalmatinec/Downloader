@@ -21,7 +21,7 @@ from utils import (
     escape_html,
     format_donators
 )
-from support import send_book_thanks
+from support import send_book_thanks, handle_book_thanks_donate
 
 
 logger = logging.getLogger(__name__)
@@ -293,3 +293,12 @@ async def books_back(callback: CallbackQuery) -> None:
         return
 
     await books_list(callback)
+
+# ============================================================
+# БЛАГОДАРНОСТЬ ЗА КНИГУ
+# ============================================================
+
+@router.callback_query(F.data == "book_thanks_donate")
+async def book_thanks_donate(callback: CallbackQuery) -> None:
+    """Поддержать автора после скачивания книги"""
+    await handle_book_thanks_donate(callback)
