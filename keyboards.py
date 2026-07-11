@@ -13,7 +13,7 @@ def get_main_kb() -> InlineKeyboardMarkup:
         InlineKeyboardButton(text=texts.CHANNEL_BUTTON, url=config.CHANNEL_LINK)
     )
     builder.add(
-        InlineKeyboardButton(text=texts.LINKS_BUTTON, url="https://dalmatinec.github.io/VasheMur/")
+        InlineKeyboardButton(text=texts.LINKS_BUTTON, url="https://vashemur.duckdns.org")
     )
     builder.add(
         InlineKeyboardButton(text=texts.BOOKS_BUTTON, callback_data="books"),
