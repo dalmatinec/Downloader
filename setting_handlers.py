@@ -12,6 +12,7 @@ from aiogram.fsm.state import State, StatesGroup
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
 import config
+import texts
 from admin_handlers import is_admin
 from keyboards import (
     get_admin_settings_kb,
@@ -129,6 +130,21 @@ async def admin_settings_maintenance(callback: CallbackQuery) -> None:
         callback=callback,
         text=text,
         reply_markup=get_admin_settings_maintenance_kb(mode)
+    )
+    await callback.answer()
+
+
+@router.callback_query(F.data == "back:admin:settings")
+async def back_to_admin_settings(callback: CallbackQuery) -> None:
+    """Возврат в меню настроек из подразделов"""
+    if not await is_admin(callback.from_user.id):
+        await callback.answer(texts.ACCESS_DENIED)
+        return
+    await safe_edit_message(
+        bot=callback.bot,
+        callback=callback,
+        text="⚙️ <b>Настройки бота</b>\n\nВыберите раздел:",
+        reply_markup=get_admin_settings_kb()
     )
     await callback.answer()
 
