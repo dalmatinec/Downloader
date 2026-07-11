@@ -8,7 +8,6 @@ import texts
 from database import Database
 from keyboards import (
     get_main_kb,
-    get_links_kb,
     get_books_kb,
     get_book_kb,
     get_support_kb,
@@ -63,30 +62,6 @@ async def main_menu(callback: CallbackQuery) -> None:
         reply_markup=get_main_kb()
     )
 
-    await callback.answer()
-
-
-# ============================================================
-# ССЫЛКИ
-# ============================================================
-
-@router.callback_query(F.data == "links")
-async def links_menu(callback: CallbackQuery) -> None:
-    text = texts.LINKS_TEXT
-
-    if callback.message.photo:
-        await callback.message.delete()
-        await callback.message.answer(
-            text=text,
-            reply_markup=get_links_kb()
-        )
-    else:
-        await safe_edit_message(
-            bot=callback.bot,
-            callback=callback,
-            text=text,
-            reply_markup=get_links_kb()
-        )
     await callback.answer()
 
 
@@ -262,20 +237,6 @@ async def donators_list(callback: CallbackQuery) -> None:
 
 
 # ============================================================
-# ПОКАЗАТЬ EMAIL
-# ============================================================
-
-@router.callback_query(F.data == "show_email")
-async def show_email(callback: CallbackQuery):
-    from setting_handlers import load_settings
-    settings = load_settings()
-    await callback.answer()
-    await callback.message.answer(
-        f"📧 Email для связи:\n\n<code>{settings.get('EMAIL')}</code>"
-    )
-
-
-# ============================================================
 # НАЗАД К КНИГАМ
 # ============================================================
 
@@ -293,6 +254,7 @@ async def books_back(callback: CallbackQuery) -> None:
         return
 
     await books_list(callback)
+
 
 # ============================================================
 # БЛАГОДАРНОСТЬ ЗА КНИГУ
