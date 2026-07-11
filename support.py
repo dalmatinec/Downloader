@@ -1,12 +1,12 @@
+# support.py
 import asyncio
 import logging
 
-from aiogram import types
+from aiogram.types import CallbackQuery
 from utils import safe_send_message
 import texts
 from setting_handlers import load_settings
 from keyboards import get_book_thanks_kb, get_book_thanks_donate_kb
-from loader import dp
 
 logger = logging.getLogger(__name__)
 
@@ -24,8 +24,7 @@ async def send_book_thanks(bot, chat_id: int) -> None:
     )
 
 
-@dp.callback_query_handler(lambda c: c.data == "book_thanks_donate")
-async def handle_book_thanks_donate(callback_query: types.CallbackQuery):
+async def handle_book_thanks_donate(callback_query: CallbackQuery) -> None:
     """Обрабатывает нажатие кнопки поддержки автора"""
     # Удаляем первое сообщение
     await callback_query.message.delete()
