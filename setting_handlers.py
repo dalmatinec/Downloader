@@ -1,3 +1,4 @@
+# setting_handlers.py
 import json
 import logging
 import os
@@ -14,7 +15,6 @@ import config
 from admin_handlers import is_admin
 from keyboards import (
     get_admin_settings_kb,
-    get_admin_settings_links_kb,
     get_admin_settings_payments_kb,
     get_admin_settings_maintenance_kb,
     get_back_kb,
@@ -36,15 +36,6 @@ SETTINGS_FILE = "settings.json"
 def load_settings() -> dict:
     if not os.path.exists(SETTINGS_FILE):
         default = {
-            "YOUTUBE_LINK": config.YOUTUBE_LINK,
-            "INSTAGRAM_VITALIY": config.INSTAGRAM_VITALIY,
-            "INSTAGRAM_LYUBASHKA": config.INSTAGRAM_LYUBASHKA,
-            "TIKTOK_VITALIY": config.TIKTOK_VITALIY,
-            "TIKTOK_LYUBASHKA": config.TIKTOK_LYUBASHKA,
-            "FACEBOOK_LINK": config.FACEBOOK_LINK,
-            "VK_LINK": config.VK_LINK,
-            "TWITCH_LINK": config.TWITCH_LINK,
-            "EMAIL": config.EMAIL,
             "KASPI_VISA": config.KASPI_VISA,
             "FREEDOM_VISA": config.FREEDOM_VISA,
             "BCC_VISA": config.BCC_VISA,
@@ -107,20 +98,6 @@ async def admin_settings_callback(callback: CallbackQuery) -> None:
     await callback.answer()
 
 
-@router.callback_query(F.data == "admin:settings:links")
-async def admin_settings_links(callback: CallbackQuery) -> None:
-    if not await is_admin(callback.from_user.id):
-        await callback.answer(texts.ACCESS_DENIED)
-        return
-    await safe_edit_message(
-        bot=callback.bot,
-        callback=callback,
-        text="🔗 <b>Ссылки</b>\n\nВыберите, что хотите изменить или посмотреть:",
-        reply_markup=get_admin_settings_links_kb()
-    )
-    await callback.answer()
-
-
 @router.callback_query(F.data == "admin:settings:payments")
 async def admin_settings_payments(callback: CallbackQuery) -> None:
     if not await is_admin(callback.from_user.id):
@@ -160,31 +137,6 @@ async def admin_settings_maintenance(callback: CallbackQuery) -> None:
 # ПРОСМОТР ВСЕХ ЗНАЧЕНИЙ
 # ============================================================
 
-@router.callback_query(F.data == "settings:link:view_all")
-async def view_all_links(callback: CallbackQuery) -> None:
-    if not await is_admin(callback.from_user.id):
-        await callback.answer(texts.ACCESS_DENIED)
-        return
-    settings = load_settings()
-    text = "🔗 <b>Все ссылки</b>\n\n"
-    text += f"▶️ YouTube: {settings.get('YOUTUBE_LINK') or 'не установлен'}\n"
-    text += f"📷 IG Виталий: {settings.get('INSTAGRAM_VITALIY') or 'не установлен'}\n"
-    text += f"📷 IG Любашки: {settings.get('INSTAGRAM_LYUBASHKA') or 'не установлен'}\n"
-    text += f"🎵 TikTok Виталий: {settings.get('TIKTOK_VITALIY') or 'не установлен'}\n"
-    text += f"🎵 TikTok Любашки: {settings.get('TIKTOK_LYUBASHKA') or 'не установлен'}\n"
-    text += f"📘 Facebook: {settings.get('FACEBOOK_LINK') or 'не установлен'}\n"
-    text += f"🌐 VK: {settings.get('VK_LINK') or 'не установлен'}\n"
-    text += f"🎮 Twitch: {settings.get('TWITCH_LINK') or 'не установлен'}\n"
-    text += f"📧 Email: {settings.get('EMAIL') or 'не установлен'}"
-    await safe_edit_message(
-        bot=callback.bot,
-        callback=callback,
-        text=text,
-        reply_markup=get_back_kb("back:admin:settings")
-    )
-    await callback.answer()
-
-
 @router.callback_query(F.data == "settings:payment:view_all")
 async def view_all_payments(callback: CallbackQuery) -> None:
     if not await is_admin(callback.from_user.id):
@@ -223,51 +175,6 @@ async def start_edit(callback: CallbackQuery, state: FSMContext, key: str, promp
     )
     await state.set_state(SettingsStates.waiting_value)
     await callback.answer()
-
-
-@router.callback_query(F.data == "settings:link:youtube")
-async def edit_youtube(callback: CallbackQuery, state: FSMContext) -> None:
-    await start_edit(callback, state, "YOUTUBE_LINK", "▶️ Введите новую ссылку на YouTube")
-
-
-@router.callback_query(F.data == "settings:link:instagram_vitaliy")
-async def edit_instagram_vitaliy(callback: CallbackQuery, state: FSMContext) -> None:
-    await start_edit(callback, state, "INSTAGRAM_VITALIY", "📷 Введите новую ссылку на Instagram Виталия")
-
-
-@router.callback_query(F.data == "settings:link:instagram_lyubashka")
-async def edit_instagram_lyubashka(callback: CallbackQuery, state: FSMContext) -> None:
-    await start_edit(callback, state, "INSTAGRAM_LYUBASHKA", "📷 Введите новую ссылку на Instagram Любашки")
-
-
-@router.callback_query(F.data == "settings:link:tiktok_vitaliy")
-async def edit_tiktok_vitaliy(callback: CallbackQuery, state: FSMContext) -> None:
-    await start_edit(callback, state, "TIKTOK_VITALIY", "🎵 Введите новую ссылку на TikTok Виталия")
-
-
-@router.callback_query(F.data == "settings:link:tiktok_lyubashka")
-async def edit_tiktok_lyubashka(callback: CallbackQuery, state: FSMContext) -> None:
-    await start_edit(callback, state, "TIKTOK_LYUBASHKA", "🎵 Введите новую ссылку на TikTok Любашки")
-
-
-@router.callback_query(F.data == "settings:link:facebook")
-async def edit_facebook(callback: CallbackQuery, state: FSMContext) -> None:
-    await start_edit(callback, state, "FACEBOOK_LINK", "📘 Введите новую ссылку на Facebook")
-
-
-@router.callback_query(F.data == "settings:link:vk")
-async def edit_vk(callback: CallbackQuery, state: FSMContext) -> None:
-    await start_edit(callback, state, "VK_LINK", "🌐 Введите новую ссылку на VK")
-
-
-@router.callback_query(F.data == "settings:link:twitch")
-async def edit_twitch(callback: CallbackQuery, state: FSMContext) -> None:
-    await start_edit(callback, state, "TWITCH_LINK", "🎮 Введите новую ссылку на Twitch")
-
-
-@router.callback_query(F.data == "settings:link:email")
-async def edit_email(callback: CallbackQuery, state: FSMContext) -> None:
-    await start_edit(callback, state, "EMAIL", "📧 Введите новый email")
 
 
 @router.callback_query(F.data == "settings:payment:kaspi")
