@@ -62,16 +62,17 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
   animation: float 3s ease-in-out infinite;
 }
 .env-back, .env-front, .env-flap, .env-paper { position: absolute; display: block; }
-.env-back { inset: 0; background: var(--red-dark); border-radius: 6px; }
+.env-back { inset: 0; background: var(--red-dark); border-radius: 6px; z-index: 1; }
 .env-paper {
   left: 14px; right: 14px; top: 12px; height: 150px;
   background: var(--paper);
   color: #7a0000;
   border-radius: 4px;
-  font-family: 'Marck Script', cursive;
+  font-family: 'Lobster', cursive;
   font-size: 26px;
   display: flex; align-items: flex-start; justify-content: center;
   padding-top: 26px;
+  z-index: 3;
   transition: transform 1s .5s cubic-bezier(.3,1.4,.5,1);
 }
 .env-front {
@@ -80,6 +81,7 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
   clip-path: polygon(0 0, 50% 55%, 100% 0, 100% 100%, 0 100%);
   border-radius: 6px;
   box-shadow: 0 20px 60px rgba(255, 0, 0, .25);
+  z-index: 4;
 }
 .env-flap {
   left: 0; right: 0; top: 0; height: 100px;
@@ -87,7 +89,7 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
   clip-path: polygon(0 0, 100% 0, 50% 100%);
   transform-origin: top;
   transition: transform .6s ease, z-index 0s .3s;
-  z-index: 3;
+  z-index: 5;
 }
 .env-seal {
   position: absolute; left: 50%; top: 82px;
@@ -97,13 +99,14 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
   color: #2a0000;
   font-size: 22px; line-height: 46px; text-align: center;
   box-shadow: 0 3px 8px rgba(0,0,0,.5);
-  z-index: 4;
+  z-index: 6;
   transition: opacity .3s;
 }
+.intro.opening .intro-hint, .intro.opening .intro-tap { opacity: 0 !important; transition: opacity .4s; animation: none; }
 .envelope.open { animation: none; }
 .envelope.open .env-seal { opacity: 0; }
-.envelope.open .env-flap { transform: rotateX(180deg); z-index: 0; }
-.envelope.open .env-paper { transform: translateY(-90px); }
+.envelope.open .env-flap { transform: rotateX(180deg); z-index: 2; }
+.envelope.open .env-paper { transform: translateY(-120px); }
 
 /* ---------- Общие ---------- */
 main { position: relative; z-index: 1; opacity: 0; transition: opacity 1.5s; }

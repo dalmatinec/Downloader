@@ -108,12 +108,13 @@
     if (opened) return;
     opened = true;
     envelope.classList.add('open');
+    $('#intro').classList.add('opening');
     startAudio();
     setTimeout(() => {
       $('#intro').classList.add('hidden');
       $('#main').classList.add('show');
       document.body.classList.remove('locked');
-    }, 1800);
+    }, 2800);
   });
 
   /* ---------- Появление секций при скролле ---------- */
