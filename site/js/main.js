@@ -299,7 +299,7 @@
   audio.addEventListener('ended', () => { load(current + 1); play(); });
   audio.addEventListener('error', () => {
     setPlaying(false);
-    errorEl.textContent = `Не нашёл файл ${PLAYLIST[current].src}`;
+    errorEl.textContent = `Не получилось включить ${PLAYLIST[current].src}`;
   });
 
   playBtn.addEventListener('click', () => (audio.paused ? play() : pause()));

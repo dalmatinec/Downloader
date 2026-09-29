@@ -1,10 +1,12 @@
 // Тут всё, что можно легко поменять под себя
 
-// Песни. Кидаешь mp3 в папку music и прописываешь тут название файла
+// Песни. Кидаешь mp3 или m4a в папку music и прописываешь тут название файла
 const PLAYLIST = [
-  { title: 'Песня 1', artist: 'Исполнитель', src: 'music/song1.mp3' },
-  { title: 'Песня 2', artist: 'Исполнитель', src: 'music/song2.mp3' },
-  { title: 'Песня 3', artist: 'Исполнитель', src: 'music/song3.mp3' },
+  { title: 'INSTAGIRL', artist: 'ПБЛ75', src: 'music/instagirl.m4a' },
+  { title: 'MELODY', artist: 'Эндшпиль, TumaniYO', src: 'music/melody.m4a' },
+  { title: 'COW', artist: 'FRIENDLY THUG 52 NGG', src: 'music/cow.m4a' },
+  { title: 'Диво', artist: 'Ulukmanapo', src: 'music/divo.m4a' },
+  { title: 'Луна', artist: 'V X V PRiNCE', src: 'music/luna.m4a' },
 ];
 
 // Я тебя люблю на славянских языках
