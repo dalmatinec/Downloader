@@ -1,0 +1,448 @@
+:root {
+  --bg: #0a0000;
+  --red: #d10a0a;
+  --red-bright: #ff2a2a;
+  --red-dark: #5c0000;
+  --text: #f6e7e7;
+  --muted: #b99a9a;
+  --paper: #fff4ee;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+html { scroll-behavior: smooth; }
+
+body {
+  background: radial-gradient(ellipse at top, #2a0000 0%, var(--bg) 60%) fixed, var(--bg);
+  color: var(--text);
+  font-family: 'Montserrat', system-ui, sans-serif;
+  font-weight: 300;
+  min-height: 100vh;
+  overflow-x: hidden;
+  -webkit-tap-highlight-color: transparent;
+}
+body.locked { overflow: hidden; }
+
+button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; }
+
+#sky {
+  position: fixed; inset: 0;
+  width: 100%; height: 100%;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* ---------- Заставка ---------- */
+.intro {
+  position: fixed; inset: 0;
+  z-index: 50;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 40px;
+  background: #000;
+  transition: opacity 1.2s ease, visibility 1.2s;
+}
+.intro.hidden { opacity: 0; visibility: hidden; }
+.intro-hint {
+  font-family: 'Caveat', cursive;
+  font-size: 30px;
+  color: var(--text);
+  opacity: 0;
+  animation: fadeUp 1.2s .4s forwards;
+}
+.intro-tap {
+  font-size: 13px; letter-spacing: 3px; text-transform: uppercase;
+  color: var(--muted);
+  animation: blink 2s infinite;
+}
+
+.envelope {
+  position: relative;
+  width: 280px; height: 180px;
+  perspective: 800px;
+  animation: float 3s ease-in-out infinite;
+}
+.env-back, .env-front, .env-flap, .env-paper { position: absolute; display: block; }
+.env-back { inset: 0; background: var(--red-dark); border-radius: 6px; }
+.env-paper {
+  left: 14px; right: 14px; top: 12px; height: 150px;
+  background: var(--paper);
+  color: #7a0000;
+  border-radius: 4px;
+  font-family: 'Marck Script', cursive;
+  font-size: 26px;
+  display: flex; align-items: flex-start; justify-content: center;
+  padding-top: 26px;
+  transition: transform 1s .5s cubic-bezier(.3,1.4,.5,1);
+}
+.env-front {
+  inset: 0;
+  background: linear-gradient(160deg, #b00000, #7a0000);
+  clip-path: polygon(0 0, 50% 55%, 100% 0, 100% 100%, 0 100%);
+  border-radius: 6px;
+  box-shadow: 0 20px 60px rgba(255, 0, 0, .25);
+}
+.env-flap {
+  left: 0; right: 0; top: 0; height: 100px;
+  background: linear-gradient(180deg, #c40000, #8d0000);
+  clip-path: polygon(0 0, 100% 0, 50% 100%);
+  transform-origin: top;
+  transition: transform .6s ease, z-index 0s .3s;
+  z-index: 3;
+}
+.env-seal {
+  position: absolute; left: 50%; top: 82px;
+  transform: translate(-50%, -50%);
+  width: 46px; height: 46px; border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #ff4b4b, #8a0000);
+  color: #2a0000;
+  font-size: 22px; line-height: 46px; text-align: center;
+  box-shadow: 0 3px 8px rgba(0,0,0,.5);
+  z-index: 4;
+  transition: opacity .3s;
+}
+.envelope.open { animation: none; }
+.envelope.open .env-seal { opacity: 0; }
+.envelope.open .env-flap { transform: rotateX(180deg); z-index: 0; }
+.envelope.open .env-paper { transform: translateY(-90px); }
+
+/* ---------- Общие ---------- */
+main { position: relative; z-index: 1; opacity: 0; transition: opacity 1.5s; }
+main.show { opacity: 1; }
+
+.section {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 90px 16px;
+  text-align: center;
+}
+.title {
+  font-family: 'Marck Script', cursive;
+  font-weight: 400;
+  font-size: clamp(40px, 8vw, 60px);
+  color: var(--red-bright);
+  text-shadow: 0 0 25px rgba(255, 30, 30, .5);
+  margin-bottom: 30px;
+}
+.section-sub { color: var(--muted); margin: -20px 0 30px; font-size: 14px; }
+
+.reveal { opacity: 0; transform: translateY(40px); transition: opacity 1s, transform 1s; }
+.reveal.visible { opacity: 1; transform: none; }
+
+/* ---------- Главный экран ---------- */
+.hero {
+  min-height: 100svh;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  padding: 40px 16px;
+  text-align: center;
+  position: relative;
+}
+.avatar-wrap {
+  position: relative;
+  width: min(62vw, 260px); aspect-ratio: 1;
+  cursor: pointer;
+  margin-bottom: 30px;
+  animation: heartbeat 1.6s ease-in-out infinite;
+}
+.avatar {
+  width: 100%; height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+  position: relative;
+  border: 3px solid var(--red);
+  user-select: none; -webkit-user-drag: none;
+}
+.avatar-ring {
+  position: absolute; inset: -12px;
+  border-radius: 50%;
+  box-shadow: 0 0 40px 10px rgba(255, 0, 0, .55), inset 0 0 20px rgba(255, 0, 0, .4);
+  animation: glow 1.6s ease-in-out infinite;
+}
+.name {
+  font-family: 'Lobster', cursive;
+  font-weight: 400;
+  font-size: clamp(50px, 13vw, 100px);
+  line-height: 1.2;
+  padding: 0 8px;
+  background: linear-gradient(100deg, var(--red) 20%, #fff 40%, var(--red-bright) 50%, var(--red) 70%);
+  background-size: 250% 100%;
+  -webkit-background-clip: text; background-clip: text;
+  color: transparent;
+  animation: shine 4s linear infinite;
+  filter: drop-shadow(0 0 18px rgba(255, 0, 0, .45));
+}
+.subtitle {
+  font-family: 'Caveat', cursive;
+  font-size: 26px;
+  color: var(--muted);
+  margin: 6px 0 24px;
+}
+.tg {
+  display: inline-flex; align-items: center; gap: 8px;
+  color: var(--text);
+  text-decoration: none;
+  padding: 10px 22px;
+  border: 1px solid rgba(255, 60, 60, .5);
+  border-radius: 40px;
+  background: rgba(120, 0, 0, .25);
+  backdrop-filter: blur(6px);
+  transition: .3s;
+}
+.tg:hover { background: var(--red); box-shadow: 0 0 25px rgba(255, 0, 0, .6); }
+.tg svg { width: 20px; height: 20px; fill: currentColor; }
+.scroll-down {
+  position: absolute; bottom: 28px;
+  font-size: 12px; letter-spacing: 3px; text-transform: uppercase;
+  color: var(--muted);
+  animation: bounce 2s infinite;
+}
+.scroll-down::after { content: ''; display: block; margin: 8px auto 0; width: 10px; height: 10px; border-right: 1px solid; border-bottom: 1px solid; transform: rotate(45deg); }
+
+/* ---------- Плеер ---------- */
+.player {
+  max-width: 420px;
+  margin: 0 auto;
+  padding: 30px 22px;
+  border-radius: 28px;
+  background: linear-gradient(160deg, rgba(60, 0, 0, .6), rgba(10, 0, 0, .7));
+  border: 1px solid rgba(255, 50, 50, .2);
+  box-shadow: 0 30px 80px rgba(0, 0, 0, .6), 0 0 60px rgba(200, 0, 0, .15);
+  backdrop-filter: blur(10px);
+}
+.turntable { position: relative; width: 220px; height: 220px; margin: 0 auto 24px; }
+.vinyl {
+  width: 100%; height: 100%;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle, transparent 30%, rgba(255,255,255,.04) 31%, transparent 32%, transparent 40%, rgba(255,255,255,.04) 41%, transparent 42%, transparent 52%, rgba(255,255,255,.05) 53%, transparent 54%, transparent 64%, rgba(255,255,255,.04) 65%, transparent 66%),
+    conic-gradient(from 0deg, #111, #222, #111, #1a1a1a, #111, #222, #111);
+  box-shadow: 0 10px 40px rgba(0, 0, 0, .8), 0 0 0 4px #1a0000;
+  display: flex; align-items: center; justify-content: center;
+  animation: spin 4s linear infinite;
+  animation-play-state: paused;
+}
+.vinyl.playing { animation-play-state: running; }
+.vinyl-label { width: 38%; height: 38%; border-radius: 50%; object-fit: cover; border: 3px solid var(--red); }
+.tonearm {
+  position: absolute; top: -8px; right: -14px;
+  width: 8px; height: 130px;
+  background: linear-gradient(90deg, #aaa, #eee, #999);
+  border-radius: 4px;
+  transform-origin: top center;
+  transform: rotate(-8deg);
+  transition: transform .8s ease;
+}
+.tonearm::before { content: ''; position: absolute; top: -10px; left: -8px; width: 24px; height: 24px; border-radius: 50%; background: #666; box-shadow: inset 0 0 0 5px #999; }
+.tonearm::after { content: ''; position: absolute; bottom: -8px; left: -4px; width: 16px; height: 22px; background: #333; border-radius: 3px; }
+.tonearm.on { transform: rotate(24deg); }
+
+.track-title { font-size: 20px; font-weight: 600; }
+.track-artist { color: var(--muted); font-size: 14px; margin-top: 4px; min-height: 1em; }
+.visualizer { width: 100%; height: 60px; margin: 16px 0 10px; display: block; }
+
+.progress { height: 6px; background: rgba(255,255,255,.12); border-radius: 3px; cursor: pointer; position: relative; }
+.progress-fill { height: 100%; width: 0; background: linear-gradient(90deg, var(--red-dark), var(--red-bright)); border-radius: 3px; position: relative; }
+.progress-fill::after { content: ''; position: absolute; right: -6px; top: 50%; width: 12px; height: 12px; margin-top: -6px; border-radius: 50%; background: #fff; box-shadow: 0 0 10px var(--red-bright); }
+.times { display: flex; justify-content: space-between; font-size: 12px; color: var(--muted); margin-top: 8px; }
+
+.controls { display: flex; align-items: center; justify-content: center; gap: 26px; margin: 18px 0; }
+.ctrl svg { width: 30px; height: 30px; fill: var(--text); transition: .2s; }
+.ctrl:hover svg { fill: var(--red-bright); }
+.ctrl.play {
+  width: 66px; height: 66px; border-radius: 50%;
+  background: var(--red);
+  box-shadow: 0 0 30px rgba(255, 0, 0, .5);
+  display: flex; align-items: center; justify-content: center;
+  transition: transform .2s;
+}
+.ctrl.play:active { transform: scale(.92); }
+.ctrl.play svg { fill: #fff; width: 32px; height: 32px; }
+.ctrl.play .i-pause { display: none; }
+.ctrl.play.playing .i-pause { display: block; }
+.ctrl.play.playing .i-play { display: none; }
+
+.volume { display: flex; align-items: center; gap: 10px; justify-content: center; }
+.volume svg { width: 20px; fill: var(--muted); }
+.volume input { width: 140px; accent-color: var(--red); }
+
+.playlist { list-style: none; margin-top: 22px; text-align: left; }
+.playlist li {
+  display: flex; align-items: center; gap: 12px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  cursor: pointer;
+  transition: .2s;
+}
+.playlist li:hover { background: rgba(255, 0, 0, .08); }
+.playlist li.active { background: rgba(255, 0, 0, .18); }
+.playlist .num { color: var(--muted); width: 18px; font-size: 13px; }
+.playlist li.active .num { color: var(--red-bright); }
+.playlist .pl-title { font-size: 15px; }
+.playlist .pl-artist { font-size: 12px; color: var(--muted); }
+.player-error { color: var(--muted); font-size: 13px; margin-top: 12px; min-height: 1em; }
+
+/* ---------- Я тебя люблю ---------- */
+.love-section { padding: 120px 16px; }
+.big-heart { width: 150px; margin: 0 auto 30px; animation: heartbeat 1.2s ease-in-out infinite; filter: drop-shadow(0 0 30px rgba(255, 0, 0, .8)); }
+.big-heart svg { fill: var(--red); width: 100%; display: block; }
+.love-text {
+  font-family: 'Marck Script', cursive;
+  font-weight: 400;
+  font-size: clamp(56px, 13vw, 100px);
+  color: #fff;
+  text-shadow: 0 0 10px var(--red-bright), 0 0 40px var(--red), 0 0 80px var(--red);
+}
+.love-lang { font-family: 'Caveat', cursive; font-size: 34px; color: var(--red-bright); height: 50px; margin-top: 10px; }
+#loveLang { display: inline-block; transition: opacity .5s, transform .5s; }
+#loveLang.out { opacity: 0; transform: translateY(10px); }
+.love-note { color: var(--muted); font-size: 14px; }
+
+/* ---------- Love is карточки ---------- */
+.cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 20px; }
+@media (max-width: 520px) {
+  .cards { grid-template-columns: 1fr 1fr; gap: 12px; }
+  .card-face { padding: 12px; border-radius: 14px; }
+  .card-front .li-head { font-size: 26px; }
+  .card-front .li-icon { font-size: 48px; }
+  .card-back .li-head { font-size: 18px; }
+  .card-back p { font-size: 19px; }
+}
+.card { aspect-ratio: 3 / 4; perspective: 1000px; cursor: pointer; }
+.card-inner { position: relative; width: 100%; height: 100%; transition: transform .8s cubic-bezier(.3,1.3,.5,1); transform-style: preserve-3d; }
+.card.flipped .card-inner { transform: rotateY(180deg); }
+.card-face {
+  position: absolute; inset: 0;
+  border-radius: 18px;
+  backface-visibility: hidden; -webkit-backface-visibility: hidden;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  padding: 18px;
+  overflow: hidden;
+}
+.card-front {
+  background: var(--paper);
+  color: #b00000;
+  box-shadow: 0 10px 30px rgba(0,0,0,.5);
+  border: 6px solid #fff;
+  outline: 2px dashed rgba(200, 0, 0, .35);
+  outline-offset: -14px;
+}
+.card-front .li-head { font-family: 'Caveat', cursive; font-weight: 700; font-size: 34px; align-self: flex-start; }
+.card-front .li-icon { font-size: 64px; margin: auto 0; filter: drop-shadow(0 4px 6px rgba(0,0,0,.2)); }
+.card-front .li-num { font-size: 11px; color: #c77; align-self: flex-end; letter-spacing: 1px; }
+.card-back {
+  background: linear-gradient(160deg, #b30000, #4a0000);
+  color: #fff;
+  transform: rotateY(180deg);
+  box-shadow: 0 10px 30px rgba(255, 0, 0, .3);
+}
+.card-back .li-head { font-family: 'Caveat', cursive; font-size: 24px; opacity: .8; align-self: flex-start; }
+.card-back p { font-family: 'Caveat', cursive; font-size: 25px; line-height: 1.15; margin: auto 0; }
+.card-back .li-heart { align-self: flex-end; font-size: 18px; }
+
+/* ---------- Письмо ---------- */
+.letter {
+  max-width: 620px; margin: 0 auto;
+  background: var(--paper);
+  color: #3a0a0a;
+  padding: 40px 32px;
+  border-radius: 6px;
+  text-align: left;
+  font-family: 'Caveat', cursive;
+  font-size: 25px;
+  line-height: 1.4;
+  box-shadow: 0 20px 60px rgba(0,0,0,.6), 0 0 0 1px rgba(255,255,255,.1);
+  background-image: repeating-linear-gradient(transparent 0 34px, rgba(180, 0, 0, .12) 34px 35px);
+  min-height: 300px;
+  transform: rotate(-1deg);
+}
+#letterText { white-space: pre-wrap; display: inline; }
+.caret { display: inline-block; width: 2px; height: 1em; background: #a00; vertical-align: -2px; animation: blink 1s infinite; }
+
+/* ---------- Бэт-сигнал ---------- */
+.signal-section { padding: 60px 16px 40px; }
+.signal-btn {
+  padding: 16px 34px;
+  border-radius: 40px;
+  border: 1px solid var(--red);
+  color: var(--text);
+  letter-spacing: 2px;
+  background: rgba(100, 0, 0, .3);
+  transition: .3s;
+  animation: pulse 2s infinite;
+}
+.signal-btn:hover { background: var(--red); }
+
+.batsignal {
+  position: fixed; inset: 0;
+  z-index: 60;
+  background: radial-gradient(ellipse at bottom, #0b0b18, #000 70%);
+  display: flex; flex-direction: column; align-items: center; justify-content: flex-start;
+  padding-top: 12vh;
+  opacity: 0; visibility: hidden;
+  transition: opacity .8s, visibility .8s;
+  cursor: pointer;
+  overflow: hidden;
+}
+.batsignal.on { opacity: 1; visibility: visible; }
+.beam {
+  position: absolute; bottom: -10px; left: 50%;
+  width: 70vmin; height: 90vh;
+  transform: translateX(-50%);
+  background: linear-gradient(to top, rgba(255, 240, 200, .5), rgba(255, 240, 200, .05));
+  clip-path: polygon(46% 100%, 54% 100%, 100% 0, 0 0);
+  filter: blur(6px);
+}
+.spot {
+  position: relative;
+  width: min(70vmin, 380px); aspect-ratio: 1;
+  border-radius: 50%;
+  background: radial-gradient(circle, #fff6d8 0%, #ffe9a6 55%, rgba(255, 220, 130, .4) 72%, transparent 74%);
+  display: flex; align-items: center; justify-content: center;
+  transform: scale(.3); opacity: 0;
+  transition: transform 1.2s .3s cubic-bezier(.3,1.4,.5,1), opacity 1s .3s;
+  box-shadow: 0 0 120px 40px rgba(255, 230, 160, .35);
+}
+.batsignal.on .spot { transform: scale(1); opacity: 1; }
+.spot svg { width: 52%; fill: #111; }
+.signal-text {
+  position: relative;
+  margin-top: 40px;
+  font-family: 'Marck Script', cursive;
+  font-size: clamp(30px, 7vw, 46px);
+  color: #fff;
+  text-align: center;
+  padding: 0 16px;
+  opacity: 0; transition: opacity 1s 1.2s;
+}
+.batsignal.on .signal-text { opacity: 1; }
+.signal-close { position: relative; margin-top: 16px; font-size: 12px; color: var(--muted); letter-spacing: 2px; }
+
+.footer { text-align: center; padding: 40px 16px 60px; color: var(--muted); font-size: 13px; }
+.footer a { color: var(--red-bright); text-decoration: none; }
+
+/* ---------- Сердечки за пальцем и взрыв ---------- */
+.trail, .burst {
+  position: fixed;
+  pointer-events: none;
+  z-index: 70;
+  color: var(--red-bright);
+  text-shadow: 0 0 8px rgba(255, 0, 0, .8);
+  user-select: none;
+}
+.trail { animation: trail 1s forwards; }
+.burst { transition: transform 1.2s cubic-bezier(.1,.8,.3,1), opacity 1.2s; }
+
+/* ---------- Анимации ---------- */
+@keyframes fadeUp { from { opacity: 0; transform: translateY(15px); } to { opacity: 1; transform: none; } }
+@keyframes blink { 50% { opacity: .2; } }
+@keyframes float { 50% { transform: translateY(-12px) rotate(-1deg); } }
+@keyframes heartbeat { 0%, 40%, 100% { transform: scale(1); } 15% { transform: scale(1.05); } 28% { transform: scale(1.02); } }
+@keyframes glow { 0%, 100% { opacity: .6; } 15% { opacity: 1; } }
+@keyframes shine { to { background-position: -250% 0; } }
+@keyframes bounce { 50% { transform: translateY(8px); } }
+@keyframes spin { to { transform: rotate(360deg); } }
+@keyframes pulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(255, 0, 0, .5); } 50% { box-shadow: 0 0 0 14px rgba(255, 0, 0, 0); } }
+@keyframes trail { to { transform: translateY(-40px) scale(.3) rotate(20deg); opacity: 0; } }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .01s !important; animation-iteration-count: 1 !important; transition-duration: .01s !important; }
+}
