@@ -28,6 +28,7 @@ python3 -m http.server 8000
 Нужен любой VPS с Ubuntu или Debian. Заходим по ssh и делаем:
 
 ```bash
+sudo apt update && sudo apt install -y git
 git clone https://github.com/dalmatinec/Downloader.git
 cd Downloader
 sudo bash deploy/setup.sh
@@ -35,8 +36,10 @@ sudo bash deploy/setup.sh
 
 Скрипт в конце напишет адрес вида `http://123.45.67.89`, его и кидаешь ей.
 
-Если что-то поменял, обновить сайт:
+## Обновить сайт после изменений
 
 ```bash
-cd Downloader && git pull && sudo cp -r site/. /var/www/slavyanochka/
+cd ~/Downloader && sudo bash deploy/update.sh
 ```
+
+Кэш настроен так, что браузер каждый раз сверяется с сервером, поэтому после обновления все сразу видят новую версию.
