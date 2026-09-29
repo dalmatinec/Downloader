@@ -112,10 +112,45 @@
     startAudio();
     setTimeout(() => {
       $('#intro').classList.add('hidden');
-      $('#main').classList.add('show');
-      document.body.classList.remove('locked');
+      playTrailer();
     }, 2800);
   });
+
+  /* ---------- Трейлер ---------- */
+  const trailer = $('#trailer');
+  const trailerLine = $('#trailerLine');
+  const timers = [];
+  let trailerDone = false;
+
+  function playTrailer() {
+    trailer.classList.add('on');
+    let t = 900;
+    TRAILER.forEach((line) => {
+      timers.push(setTimeout(() => {
+        trailerLine.textContent = line;
+        trailerLine.classList.remove('show');
+        void trailerLine.offsetWidth;
+        trailerLine.classList.add('show');
+      }, t));
+      t += 2700;
+    });
+    timers.push(setTimeout(() => {
+      trailerLine.classList.remove('show');
+      $('#trailerFlash').classList.add('go');
+      $('#trailerFinal').classList.add('show');
+    }, t));
+    timers.push(setTimeout(endTrailer, t + 4200));
+  }
+
+  function endTrailer() {
+    if (trailerDone) return;
+    trailerDone = true;
+    timers.forEach(clearTimeout);
+    trailer.classList.remove('on');
+    $('#main').classList.add('show');
+    document.body.classList.remove('locked');
+  }
+  $('#trailerSkip').addEventListener('click', endTrailer);
 
   /* ---------- Появление секций при скролле ---------- */
   const io = new IntersectionObserver((entries) => {
@@ -232,6 +267,80 @@
     }
   }, { threshold: 0.4 });
   letterIo.observe($('.letter'));
+
+  /* ---------- Стиралка ---------- */
+  $('#scratchMsg').textContent = SCRATCH;
+  const cover = $('#scratchCover');
+  const sctx = cover.getContext('2d');
+  let scratched = false;
+
+  function paintCover() {
+    const w = cover.clientWidth, h = cover.clientHeight;
+    cover.width = w * dpr; cover.height = h * dpr;
+    sctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    const g = sctx.createLinearGradient(0, 0, w, h);
+    g.addColorStop(0, '#7a0000');
+    g.addColorStop(0.5, '#c21414');
+    g.addColorStop(1, '#5c0000');
+    sctx.fillStyle = g;
+    sctx.fillRect(0, 0, w, h);
+    sctx.fillStyle = 'rgba(255,255,255,.08)';
+    for (let i = 0; i < 18; i++) {
+      sctx.save();
+      sctx.translate(rand(0, w), rand(0, h));
+      sctx.rotate(rand(-0.5, 0.5));
+      sctx.scale(0.5, 0.5);
+      sctx.fill(heartPath);
+      sctx.restore();
+    }
+    sctx.fillStyle = 'rgba(255,255,255,.9)';
+    sctx.font = '600 16px Montserrat, sans-serif';
+    sctx.textAlign = 'center';
+    sctx.fillText('сотри меня ✨', w / 2, h / 2 + 6);
+  }
+  // Ждём шрифты, чтобы надпись на покрытии была нужным шрифтом
+  (document.fonts ? document.fonts.ready : Promise.resolve()).then(paintCover);
+
+  let drawing = false, last = null;
+  function scratchAt(e) {
+    const r = cover.getBoundingClientRect();
+    const x = e.clientX - r.left, y = e.clientY - r.top;
+    sctx.globalCompositeOperation = 'destination-out';
+    sctx.lineWidth = 42;
+    sctx.lineCap = 'round';
+    sctx.beginPath();
+    sctx.moveTo(last ? last.x : x, last ? last.y : y);
+    sctx.lineTo(x, y);
+    sctx.stroke();
+    sctx.globalCompositeOperation = 'source-over';
+    last = { x, y };
+  }
+  function clearedShare() {
+    const data = sctx.getImageData(0, 0, cover.width, cover.height).data;
+    let clear = 0, total = 0;
+    for (let i = 3; i < data.length; i += 64) { total++; if (data[i] === 0) clear++; }
+    return clear / total;
+  }
+  cover.addEventListener('pointerdown', (e) => { drawing = true; last = null; cover.setPointerCapture(e.pointerId); scratchAt(e); });
+  cover.addEventListener('pointermove', (e) => { if (drawing) scratchAt(e); });
+  const stop = (e) => {
+    if (!drawing) return;
+    drawing = false;
+    if (!scratched && clearedShare() > 0.45) {
+      scratched = true;
+      cover.classList.add('done');
+      const r = cover.getBoundingClientRect();
+      burst(r.left + r.width / 2, r.top + r.height / 2, 36);
+    }
+  };
+  cover.addEventListener('pointerup', stop);
+  cover.addEventListener('pointercancel', stop);
+
+  /* ---------- Кнопка ответить ---------- */
+  const replyText = encodeURIComponent(REPLY.text);
+  $('#replyBtn').href = REPLY.username
+    ? `https://t.me/${REPLY.username.replace('@', '')}?text=${replyText}`
+    : `https://t.me/share/url?url=${encodeURIComponent(location.origin)}&text=${replyText}`;
 
   /* ---------- Бэт-сигнал ---------- */
   const signal = $('#batsignal');

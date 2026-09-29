@@ -28,6 +28,20 @@
     <p class="intro-tap">нажми, чтобы открыть</p>
   </div>
 
+  <!-- Трейлер -->
+  <div id="trailer" class="trailer">
+    <div class="bars"></div>
+    <div class="grain"></div>
+    <p class="trailer-line" id="trailerLine"></p>
+    <div class="trailer-final" id="trailerFinal">
+      <p class="tf-small">в главной роли</p>
+      <p class="tf-name">Славяночка</p>
+      <p class="tf-sub">уже в моём сердце. навсегда</p>
+    </div>
+    <div class="trailer-flash" id="trailerFlash"></div>
+    <button class="trailer-skip" id="trailerSkip">пропустить ›</button>
+  </div>
+
   <main id="main">
 
     <!-- Главный экран -->
@@ -117,9 +131,26 @@
       </div>
     </section>
 
+    <!-- Стиралка -->
+    <section class="section reveal">
+      <h2 class="title">Секретик</h2>
+      <p class="section-sub">сотри пальцем</p>
+      <div class="scratch">
+        <p class="scratch-msg" id="scratchMsg"></p>
+        <canvas class="scratch-cover" id="scratchCover"></canvas>
+      </div>
+    </section>
+
     <!-- Бэт-сигнал -->
     <section class="section signal-section reveal">
       <button class="signal-btn" id="signalBtn">🦇 Не нажимай</button>
+    </section>
+
+    <section class="section reply-section reveal">
+      <a class="reply-btn" id="replyBtn" target="_blank" rel="noopener">
+        <span class="reply-shine"></span>
+        Ответить 💌
+      </a>
     </section>
 
     <footer class="footer">
